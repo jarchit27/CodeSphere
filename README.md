@@ -1,4 +1,10 @@
 # CodeSphere
+
+## Getting Started
+
+```bash
+git clone https://github.com/your-username/CodeSphere.git
+cd CodeSphere
 git clone https://github.com/your-username/CodeSphere.git
 cd CodeSphere
 cd backend
