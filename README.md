@@ -1,4 +1,4 @@
-# CodeSphere
+# CodeSphere Project
 
 ## Getting Started
 
