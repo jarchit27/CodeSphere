@@ -3,7 +3,7 @@
 ## Getting Started
 
 ```bash
-git clone https://github.com/your-username/CodeSphere.git
+git clone https://github.com/jarchit27/CodeSphere.git
 cd CodeSphere
 cd backend
 npm install
