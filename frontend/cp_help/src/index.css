@@ -1,0 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+@import "tailwindcss";
+
+
+@layer base {
+  html {
+    font-family: "Poppins", "sans-serif";
+  }
+
+  body {
+    background-color: #fdfeff;
+    overflow-x: hidden;
+  }
+}
+
+@layer components{
+
+  .input-box{
+    @apply w-full text-sm bg-transparent border-[1.5px] px-5 py-3 rounded mb-4 outline-none;
+  }
+
+  .btn-primary{
+    @apply w-full text-sm bg-blue-500 text-white p-2 rounded my-1 hover:bg-blue-600;
+
+  }
+  .icon-btn{
+    @apply text-xl text-slate-300 cursor-pointer hover:text-blue-500;
+  }
+  .input-label{
+    @apply text-xs text-slate-400;
+  }
+}
+/* ───────────────────────────────────────────────────────── */
+/*  Diwali Animations & Styles                              */
+/* ───────────────────────────────────────────────────────── */
+
+@layer components {
+  /* animated gradient text */
+  @keyframes text-bg {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  .animate-text {
+    background: linear-gradient(
+      to right,
+      #facc15,
+      #f87171,
+      #a78bfa,
+      #fb7185
+    );
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    background-size: 200% 200%;
+    animation: text-bg 4s ease infinite;
+  }
+
+  /* sparkle utility */
+  @keyframes sparkle {
+    0%   { transform: scale(0.5); opacity: 0; }
+    50%  { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(0.5); opacity: 0; }
+  }
+  .sparkle {
+    @apply absolute rounded-full;
+    width: 1.5rem;
+    height: 1.5rem;
+    background: radial-gradient(circle at center, rgba(255,255,255,0.9), transparent 70%);
+    opacity: 0;
+    animation: sparkle 1.5s ease-in-out infinite both;
+  }
+  .sparkle.delay-200 {
+    animation-delay: 0.2s;
+  }
+}
+
+
+

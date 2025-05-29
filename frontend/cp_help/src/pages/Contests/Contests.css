@@ -1,0 +1,387 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+
+* {
+  box-sizing: border-box;
+}
+
+.contests-container {
+  min-height: 100vh;
+  background: radial-gradient(ellipse at center, #0f1419 0%, #000 100%);
+  position: relative;
+  overflow-x: hidden;
+  font-family: 'Orbitron', monospace;
+}
+
+/* Animated Stars */
+.stars {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.stars::before, .stars::after {
+  content: '';
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 
+    100px 200px #fff, 300px 100px #fff, 500px 300px #fff, 700px 150px #fff,
+    150px 400px #fff, 450px 250px #fff, 650px 400px #fff, 850px 300px #fff,
+    200px 50px #fff, 400px 350px #fff, 600px 100px #fff, 800px 450px #fff,
+    50px 300px #00d4ff, 250px 150px #00d4ff, 550px 200px #00d4ff, 750px 350px #00d4ff;
+  animation: twinkle 4s infinite ease-in-out alternate;
+}
+
+.stars::after {
+  animation-delay: 2s;
+  box-shadow: 
+    120px 220px #fff, 320px 120px #fff, 520px 320px #fff, 720px 170px #fff,
+    170px 420px #fff, 470px 270px #fff, 670px 420px #fff, 870px 320px #fff,
+    220px 70px #fff, 420px 370px #fff, 620px 120px #fff, 820px 470px #fff,
+    70px 320px #64ffda, 270px 170px #64ffda, 570px 220px #64ffda, 770px 370px #64ffda;
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* Lightning Effect */
+.lightning {
+  position: fixed;
+  top: 0;
+  left: -100%;
+  width: 200%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(100, 255, 218, 0.1), transparent);
+  animation: lightning-sweep 8s infinite linear;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@keyframes lightning-sweep {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+.contests-content {
+  position: relative;
+  z-index: 3;
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Header Styles */
+.contests-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 3rem;
+  flex-wrap: wrap;
+  gap: 2rem;
+}
+
+.contests-title {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 900;
+  color: #64ffda;
+  text-shadow: 0 0 20px rgba(100, 255, 218, 0.5);
+  margin: 0;
+  position: relative;
+}
+
+.title-text {
+  background: linear-gradient(45deg, #64ffda, #00d4ff, #64ffda);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.title-bracket {
+  color: #888;
+  font-weight: 400;
+}
+
+.contests-stats {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.stat-item {
+  color: #64ffda;
+  background: rgba(100, 255, 218, 0.1);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  border: 1px solid rgba(100, 255, 218, 0.3);
+}
+
+.stat-label {
+  color: #888;
+  margin-right: 0.5rem;
+}
+
+.stat-value {
+  font-weight: 700;
+  color: #64ffda;
+}
+
+.binary-decoration {
+  font-family: 'Courier New', monospace;
+  color: #444;
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.home-btn {
+  background: linear-gradient(135deg, #1a2332, #2d3748);
+  color: #64ffda;
+  border: 1px solid #64ffda;
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  font-family: 'Orbitron', monospace;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.home-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(100, 255, 218, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.home-btn:hover::before {
+  left: 100%;
+}
+
+.home-btn:hover {
+  background: linear-gradient(135deg, #2d3748, #1a2332);
+  box-shadow: 0 0 20px rgba(100, 255, 218, 0.3);
+  transform: translateY(-2px);
+}
+
+/* Grid Layout */
+.contests-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 2rem;
+}
+
+/* Contest Cards */
+.contest-card {
+  background: linear-gradient(135deg, rgba(26, 35, 50, 0.9), rgba(45, 55, 72, 0.9));
+  border: 1px solid rgba(100, 255, 218, 0.2);
+  border-radius: 12px;
+  padding: 1.5rem;
+  position: relative;
+  transition: all 0.4s ease;
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+}
+
+.card-glow {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(100, 255, 218, 0.1) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+.contest-card:hover {
+  transform: translateY(-8px);
+  border-color: #64ffda;
+  box-shadow: 0 10px 40px rgba(100, 255, 218, 0.2);
+}
+
+.contest-card:hover .card-glow {
+  opacity: 1;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.contest-host-badge {
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.badge-codeforces { background: linear-gradient(45deg, #1f8ef1, #4dabf7); }
+.badge-codechef { background: linear-gradient(45deg, #8b4513, #d2691e); }
+.badge-leetcode { background: linear-gradient(45deg, #ffa116, #ffcc02); }
+.badge-atcoder { background: linear-gradient(45deg, #3c5aa6, #5c7cfa); }
+.badge-geeksforgeeks { background: linear-gradient(45deg, #2f8d46, #51cf66); }
+.badge-codingninjas { background: linear-gradient(45deg, #dd2476, #ff512f); }
+.badge-default { background: linear-gradient(45deg, #64ffda, #00d4ff); }
+
+.card-corner-decoration {
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(45deg, #64ffda, transparent);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+.contest-title-card {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  line-height: 1.4;
+}
+
+.contest-title-card a {
+  color: #e2e8f0;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.contest-title-card a:hover {
+  color: #64ffda;
+  text-shadow: 0 0 10px rgba(100, 255, 218, 0.5);
+}
+
+.contest-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.detail-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.detail-icon {
+  font-size: 1rem;
+}
+
+.detail-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.detail-label {
+  color: #888;
+  font-weight: 600;
+  min-width: 80px;
+}
+
+.detail-value {
+  color: #e2e8f0;
+  font-weight: 400;
+}
+
+.contest-link {
+  color: #64ffda;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.contest-link:hover {
+  color: #00d4ff;
+  text-shadow: 0 0 5px rgba(0, 212, 255, 0.5);
+}
+
+.card-footer {
+  border-top: 1px solid rgba(100, 255, 218, 0.1);
+  padding-top: 1rem;
+}
+
+.binary-pattern {
+  font-family: 'Courier New', monospace;
+  color: #444;
+  font-size: 0.8rem;
+  letter-spacing: 2px;
+  text-align: center;
+  opacity: 0.6;
+}
+
+/* Loading and Error States */
+.contests-loading, .contests-error {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #e2e8f0;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid rgba(100, 255, 218, 0.3);
+  border-top: 3px solid #64ffda;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.error-code, .loading-code {
+  font-family: 'Courier New', monospace;
+  color: #64ffda;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  display: block;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .contests-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .contests-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .contests-content {
+    padding: 1rem;
+  }
+}
