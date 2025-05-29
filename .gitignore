@@ -1,6 +1,6 @@
-backend/config.json
+# backend/config.json
 # Environment files
-.env
+# .env
 
 # Logs
 *.log
