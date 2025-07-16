@@ -1,53 +1,20 @@
-import { useEffect, useState } from 'react';
 import { MdCreate, MdDelete, MdLocationOn, MdEmojiEvents, MdCode } from 'react-icons/md';
 import { getBgColorByRating, getColorByRating } from '../../utils/helper';
 import './FriendCard.css';
 
-const FriendCard = ({ handle, name, onEdit, onDelete, onViewAnalysis }) => {
-  const [userData, setUserData] = useState(null);
-  const [error, setError] = useState("");
-  const [solvedCount, setSolvedCount] = useState(null);
-  const [contestsCount, setContestsCount] = useState(null);
+const FriendCard = ({
+  handle,
+  name,
+  date,
+  userData,
+  solvedCount,
+  contestsCount,
+  loading,
+  onEdit,
+  onDelete,
+  onViewAnalysis
+}) => {
   
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const [userInfoRes, ratingRes, submissionsRes] = await Promise.all([
-          fetch(`https://codeforces.com/api/user.info?handles=${handle}`),
-          fetch(`https://codeforces.com/api/user.rating?handle=${handle}`),
-          fetch(`https://codeforces.com/api/user.status?handle=${handle}`),
-        ]);
-
-        const userInfoData = await userInfoRes.json();
-        const ratingData = await ratingRes.json();
-        const submissionsData = await submissionsRes.json();
-
-        if (userInfoData.status !== 'OK') throw new Error('User not found');
-
-        setUserData(userInfoData.result[0]);
-
-        if (ratingData.status === 'OK') {
-          setContestsCount(ratingData.result.length);
-        }
-
-        if (submissionsData.status === 'OK') {
-          const solved = new Set();
-          submissionsData.result.forEach((submission) => {
-            if (submission.verdict === 'OK') {
-              const key = `${submission.problem.contestId}-${submission.problem.index}`;
-              solved.add(key);
-            }
-          });
-          setSolvedCount(solved.size);
-        }
-      } catch (err) {
-        setError('Failed to load data for handle: ' + handle);
-      }
-    };
-
-    fetchUserData();
-  }, [handle]);
-
   // Helper function to get background gradient based on rating
   const getCardBackground = (rating) => {
     if (!rating || rating < 1200) {
@@ -74,7 +41,29 @@ const FriendCard = ({ handle, name, onEdit, onDelete, onViewAnalysis }) => {
     }
   };
 
-  if (error) {
+  // Handle case where userData might not exist yet
+  if (loading || !userData) {
+    return (
+      <div className="space-card rounded-xl p-5 my-3 shadow-lg">
+        <div className="flex items-center space-x-3">
+          <div className="space-y-2">
+            <div className="h-4 w-32 bg-white/20 rounded animate-pulse"></div>
+            <div className="h-3 w-24 bg-white/20 rounded animate-pulse"></div>
+          </div>
+        </div>
+        <div className="mt-4 space-y-3">
+          <div className="h-3 w-3/4 bg-white/20 rounded animate-pulse"></div>
+          <div className="h-3 w-1/2 bg-white/20 rounded animate-pulse"></div>
+        </div>
+        <div className="mt-3 text-sm text-gray-300 text-center">
+          <span>Loading Codeforces data for @{handle}...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Safety check for userData
+  if (!userData || typeof userData !== 'object') {
     return (
       <div className="space-card rounded-xl p-4 my-3 shadow-lg">
         <div className="flex items-center text-red-400">
@@ -84,28 +73,8 @@ const FriendCard = ({ handle, name, onEdit, onDelete, onViewAnalysis }) => {
             </svg>
           </div>
           <div className="ml-3">
-            <p className="text-sm font-medium">Error for @{handle}: {error}</p>
+            <p className="text-sm font-medium">Error for @{handle}: Failed to load data</p>
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!userData) {
-    return (
-      <div className="space-card rounded-xl p-5 my-3 shadow-lg">
-        <div className="flex items-center space-x-3">
-          <div className="space-y-2">
-            <div className="h-4 w-32 bg-white/20 rounded"></div>
-            <div className="h-3 w-24 bg-white/20 rounded"></div>
-          </div>
-        </div>
-        <div className="mt-4 space-y-3">
-          <div className="h-3 w-3/4 bg-white/20 rounded"></div>
-          <div className="h-3 w-1/2 bg-white/20 rounded"></div>
-        </div>
-        <div className="mt-3 text-sm text-gray-300 text-center">
-          <span>Loading Codeforces data for @{handle}...</span>
         </div>
       </div>
     );
@@ -159,19 +128,23 @@ const FriendCard = ({ handle, name, onEdit, onDelete, onViewAnalysis }) => {
         <div className="grid grid-cols-3 gap-2">
           <div className="metallic-stat rounded-lg p-2 text-center">
             <p className="text-xs text-gray-300 uppercase font-semibold">Contrib</p>
-            <p className={`font-bold text-sm ${userData.contribution >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {userData.contribution}
+            <p className={`font-bold text-sm ${(userData.contribution || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              {userData.contribution || 0}
             </p>
           </div>
           <div className="metallic-stat rounded-lg p-2 text-center">
             <MdEmojiEvents className="text-yellow-400 mx-auto mb-1" />
             <p className="text-xs text-gray-300 uppercase font-semibold">Contests</p>
-            <p className="font-bold text-sm text-white">{contestsCount ?? '...'}</p>
+            <p className="font-bold text-sm text-white">
+              {contestsCount !== undefined ? contestsCount : '...'}
+            </p>
           </div>
           <div className="metallic-stat rounded-lg p-2 text-center">
             <MdCode className="text-blue-400 mx-auto mb-1" />
             <p className="text-xs text-gray-300 uppercase font-semibold">Solved</p>
-            <p className="font-bold text-sm text-white">{solvedCount ?? '...'}</p>
+            <p className="font-bold text-sm text-white">
+              {solvedCount !== undefined ? solvedCount : '...'}
+            </p>
           </div>
         </div>
 

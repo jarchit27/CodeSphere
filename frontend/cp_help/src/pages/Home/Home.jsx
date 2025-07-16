@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import './Home.css';                    // ← your Space-themed Home.css
+import './Home.css';
 import Navbar from '../../components/Navbar/Navbar';
 import FriendCard from '../../components/Cards/FriendCard';
 import { MdAdd } from 'react-icons/md';
@@ -16,27 +16,20 @@ const Home = () => {
     type: 'add',
     data: null,
   });
-  const [visibleCards, setVisibleCards] = useState(0);
+
   const [userInfo, setUserInfo] = useState(null);
+  const [userInfoMap, setUserInfoMap] = useState({});
+  const [solvedCountMap, setSolvedCountMap] = useState({});
+  const [contestsCountMap, setContestsCountMap] = useState({});
+  const [loadingUserInfo, setLoadingUserInfo] = useState(true);
+
   const navigate = useNavigate();
 
   const handleEdit = (friendDetails) => {
     setOpenAddEditModal({ isShown: true, data: friendDetails, type: 'edit' });
   };
 
-  const startRevealTimer = (friends) => {
-    setVisibleCards(0);
-    let index = 0;
-    const interval = setInterval(() => {
-      index += 1;
-      setVisibleCards((prev) => {
-        if (index >= friends.length) clearInterval(interval);
-        return prev + 1;
-      });
-    }, 2500);
-  };
-
-    const handleDelete = async (friendDetails) => {
+  const handleDelete = async (friendDetails) => {
     const friendId = friendDetails._id;
     try {
       const response = await axiosInstance.delete(`/delete-friend/${friendId}`);
@@ -47,7 +40,6 @@ const Home = () => {
       console.error('Unexpected error during deletion:', error);
     }
   };
-
 
   const getUserInfo = async () => {
     try {
@@ -66,7 +58,7 @@ const Home = () => {
       const response = await axiosInstance.get("/get-all-friends");
       if (response.data?.friends) {
         setAllFriends(response.data.friends);
-        startRevealTimer(response.data.friends);
+        fetchBatchUserData(response.data.friends);
       }
     } catch (error) {
       console.error("Failed to fetch friends:", error);
@@ -81,10 +73,89 @@ const Home = () => {
       if (response.data?.friends) {
         setIsSearch(true);
         setAllFriends(response.data.friends);
-        startRevealTimer(response.data.friends);  // 👈 Add this
+        fetchBatchUserData(response.data.friends);
       }
     } catch (error) {
       console.error("Search failed:", error);
+    }
+  };
+
+  const fetchBatchUserData = async (friends) => {
+    if (!friends || friends.length === 0) return;
+    
+    setLoadingUserInfo(true);
+    const handles = friends.map(f => f.handle).join(';');
+    
+    try {
+      // Batch fetch user info
+      const userInfoPromise = fetch(`https://codeforces.com/api/user.info?handles=${handles}`)
+        .then(res => res.json());
+
+      // Batch fetch ratings (for contest count)
+      const ratingPromises = friends.map(friend => 
+        fetch(`https://codeforces.com/api/user.rating?handle=${friend.handle}`)
+          .then(res => res.json())
+          .catch(() => ({ status: 'FAILED', result: [] }))
+      );
+
+      // Batch fetch submissions (for solved count)
+      const submissionPromises = friends.map(friend => 
+        fetch(`https://codeforces.com/api/user.status?handle=${friend.handle}`)
+          .then(res => res.json())
+          .catch(() => ({ status: 'FAILED', result: [] }))
+      );
+
+      const [userInfoData, ...ratingResults] = await Promise.all([
+        userInfoPromise,
+        ...ratingPromises
+      ]);
+
+      const submissionResults = await Promise.all(submissionPromises);
+
+      // Process user info
+      if (userInfoData.status === 'OK') {
+        const infoMap = {};
+        userInfoData.result.forEach(user => {
+          infoMap[user.handle] = user;
+        });
+        setUserInfoMap(infoMap);
+      }
+
+      // Process ratings (contest count)
+      const contestsMap = {};
+      ratingResults.forEach((ratingData, index) => {
+        const handle = friends[index].handle;
+        if (ratingData.status === 'OK') {
+          contestsMap[handle] = ratingData.result.length;
+        } else {
+          contestsMap[handle] = 0;
+        }
+      });
+      setContestsCountMap(contestsMap);
+
+      // Process submissions (solved count)
+      const solvedMap = {};
+      submissionResults.forEach((submissionData, index) => {
+        const handle = friends[index].handle;
+        if (submissionData.status === 'OK') {
+          const solved = new Set();
+          submissionData.result.forEach((submission) => {
+            if (submission.verdict === 'OK') {
+              const key = `${submission.problem.contestId}-${submission.problem.index}`;
+              solved.add(key);
+            }
+          });
+          solvedMap[handle] = solved.size;
+        } else {
+          solvedMap[handle] = 0;
+        }
+      });
+      setSolvedCountMap(solvedMap);
+
+    } catch (error) {
+      console.error('Error during batch fetch:', error);
+    } finally {
+      setLoadingUserInfo(false);
     }
   };
 
@@ -103,30 +174,21 @@ const Home = () => {
       <div className="home-page">
         {/* Cosmic Background Elements */}
         <div className="background-elements">
-          {/* Animated Stars */}
           <div className="stars"></div>
-          
-          {/* Nebula Effects */}
           <div className="nebula-purple"></div>
           <div className="nebula-blue"></div>
           <div className="nebula-cyan"></div>
-          
-          {/* Cosmic Dust */}
           <div className="cosmic-dust"></div>
-          
-          {/* Shooting Stars */}
           <div className="shooting-star"></div>
           <div className="shooting-star"></div>
           <div className="shooting-star"></div>
-          
-          {/* Distant Planets */}
           <div className="planet planet-1"></div>
           <div className="planet planet-2"></div>
         </div>
 
         <Navbar
           userInfo={userInfo}
-          showSearchBar = {true}
+          showSearchBar={true}
           onSearchFriend={onSearchFriend}
           handleClearSearch={handleClearSearch}
         />
@@ -171,22 +233,21 @@ const Home = () => {
 
           <div className="cards-container">
             <div className="cards-grid">
-              {allFriends.slice(0, visibleCards).map((f, index) => (
-                <div 
-                  key={f._id} 
-                  className="card-wrapper"
-                  style={{ '--delay': `${index * 0.1}s` }}
-                >
-                  <FriendCard
-                    handle={f.handle}
-                    date={f.createdOn}
-                    name={f.name}
-                    onEdit={() => handleEdit(f)}
-                    onDelete={() => handleDelete(f)}
-                    onViewAnalysis={() => navigate(`/viewanalysis/${f.handle}`)}
-                    className="enhanced-card"
-                  />
-                </div>
+              {allFriends.map((f) => (
+                <FriendCard
+                  key={f._id}
+                  handle={f.handle}
+                  date={f.createdOn}
+                  name={f.name}
+                  userData={userInfoMap[f.handle]}
+                  solvedCount={solvedCountMap[f.handle]}
+                  contestsCount={contestsCountMap[f.handle]}
+                  loading={loadingUserInfo}
+                  onEdit={() => handleEdit(f)}
+                  onDelete={() => handleDelete(f)}
+                  onViewAnalysis={() => navigate(`/viewanalysis/${f.handle}`)}
+                  className="enhanced-card"
+                />
               ))}
             </div>
             
