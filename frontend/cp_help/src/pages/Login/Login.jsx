@@ -2,14 +2,16 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import PasswordInput from '../../components/Inputs/PasswordInput';
 import { validateEmail } from '../../utils/helper';
-import axiosInstance from '../../utils/axiosInstance';
+import { authService } from '../../services/api';
 import {Code } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const Login = () => {
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [error, setError]       = useState(null);
   const navigate = useNavigate();
+  const { fetchUser } = useAuth();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -23,9 +25,10 @@ const Login = () => {
     }
     setError("");
     try {
-      const { data } = await axiosInstance.post("/login", { email, password });
+      const { data } = await authService.login({ email, password });
       if (data.accessToken) {
         localStorage.setItem("token", data.accessToken);
+        await fetchUser(); // Update the global auth state
         navigate("/dashboard");
       }
     } catch (err) {

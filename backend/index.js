@@ -1,8 +1,7 @@
 require("dotenv").config();
-const config = require("./config.json");
 const mongoose = require("mongoose");
 
-mongoose.connect(config.connectString);
+mongoose.connect(process.env.MONGO_URI);
 
 const User = require("./models/user.model");
 const Friend = require("./models/friend.model");
@@ -10,6 +9,7 @@ const Problem = require("./models/problem.model");
 
 const express = require("express");
 const cors = require("cors");
+const bcrypt = require("bcryptjs");
 const app= express();
 const jwt = require('jsonwebtoken');
 const {authenticateToken} = require("./utilities");
@@ -50,9 +50,11 @@ app.post("/create-account", async(req, res) =>{
     if(isUser){
         return res.json({error:true, message:"User already exists"})
     }
-    const user = new User({fullname, codeforcesHandle ,email , password });
+    
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = new User({fullname, codeforcesHandle ,email , password: hashedPassword });
     await user.save();
-    const accessToken  = jwt.sign({user}, process.env.ACCESS_TOKEN_SECRET,{
+    const accessToken  = jwt.sign({ user: { _id: user._id } }, process.env.ACCESS_TOKEN_SECRET,{
         expiresIn: "36000m"
     })
 
@@ -83,10 +85,10 @@ app.post("/login" , async(req, res)=>{
     if(!userInfo){
         return res.status(400).json({error:true , message: "User not found"})
     }
-    if(userInfo.email == email && userInfo.password == password)
+    const isPasswordValid = await bcrypt.compare(password, userInfo.password) || userInfo.password === password;
+    if(userInfo.email == email && isPasswordValid)
     {
-        const user = {user: userInfo}
-        const accessToken = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET,{expiresIn:"36000m"});
+        const accessToken = jwt.sign({ user: { _id: userInfo._id } }, process.env.ACCESS_TOKEN_SECRET,{expiresIn:"36000m"});
 
         return res.json({error:false, message:"Login Successful", email, accessToken});
     }
@@ -118,6 +120,11 @@ app.post("/add-friend" , authenticateToken ,async(req, res)=>{
     }
 
     try{
+        const existingFriend = await Friend.findOne({ handle, userId: user._id });
+        if (existingFriend) {
+            return res.status(400).json({ error: true, message: "Friend already added" });
+        }
+
         const friend = new Friend({
             handle, 
             name, 
@@ -152,7 +159,7 @@ app.put("/edit-friend/:friendId" , authenticateToken ,async(req, res)=>{
         const friend = await Friend.findOne({_id:friendId, userId: user._id})
 
         if(!friend)
-            return res.status(401).json({error:true, message:"friend not found"})
+            return res.status(404).json({error:true, message:"Friend not found"})
 
         if(handle) friend.handle = handle;
         if(name) friend.name = name;
@@ -179,7 +186,7 @@ app.delete("/delete-friend/:friendId" , authenticateToken ,async(req, res)=>{
         const friend = await Friend.findOne({_id:friendId, userId: user._id});
 
         if(!friend)
-            return res.status(401).json({error:true, message:"Friend not found"})
+            return res.status(404).json({error:true, message:"Friend not found"})
 
         await Friend.deleteOne({_id: friendId, userId: user._id});
         return res.json({
@@ -238,6 +245,11 @@ app.post("/add-problem" , authenticateToken ,async(req, res)=>{
     }
 
     try{
+        const existingProblem = await Problem.findOne({ questionLink, userId: user._id });
+        if (existingProblem) {
+            return res.status(400).json({ error: true, message: "Problem already added" });
+        }
+
         const problem = new Problem({
             questionName,platform,difficulty,questionLink,notes ,
             tags: tags || [],
@@ -265,7 +277,7 @@ app.delete("/delete-problem/:problemId" , authenticateToken ,async(req, res)=>{
         const problem = await Problem.findOne({_id:problemId, userId: user._id});
 
         if(!problem)
-            return res.status(401).json({error:true, message:"Problem not found"})
+            return res.status(404).json({error:true, message:"Problem not found"})
 
         await Problem.deleteOne({_id: problemId, userId: user._id});
         return res.json({
@@ -331,5 +343,7 @@ app.get("/search-friend/", authenticateToken, async(req,res)=>{
     }
 });
 
-app.listen(8000);
+app.listen(process.env.PORT, () => {
+    console.log(`Server is running on port ${process.env.PORT}`);
+});
 module.exports = app;

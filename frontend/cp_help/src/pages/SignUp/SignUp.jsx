@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import PasswordInput from '../../components/Inputs/PasswordInput';
 import { Link, useNavigate } from 'react-router-dom';
 import { validateEmail } from '../../utils/helper';
-import axiosInstance from '../../utils/axiosInstance';
+import { authService } from '../../services/api';
 import {Code, User, Mail, Trophy } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const SignUp = () => {
   const [name, setName] = useState("");
@@ -12,6 +13,7 @@ const SignUp = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const { fetchUser } = useAuth();
 
   const handleSignUp = async (e) => {
     e.preventDefault();
@@ -34,7 +36,7 @@ const SignUp = () => {
     setError("");
 
     try {
-      const response = await axiosInstance.post("/create-account", {
+      const response = await authService.register({
         fullname: name,
         codeforcesHandle,
         email,
@@ -47,6 +49,7 @@ const SignUp = () => {
       }
       if (response.data?.accessToken) {
         localStorage.setItem("token", response.data.accessToken);
+        await fetchUser(); // Update the global auth state
         navigate("/dashboard");
       }
     } catch (err) {

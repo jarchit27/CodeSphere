@@ -6,7 +6,7 @@ const userSchema = new Schema({
     codeforcesHandle:{type: String},
     email: {type:String},
     password: {type:String},
-    createdOn: {type:Date , default: new Date().getTime()},
+    createdOn: {type: Date, default: Date.now},
 })
 
 module.exports = mongoose.model("User" , userSchema);
