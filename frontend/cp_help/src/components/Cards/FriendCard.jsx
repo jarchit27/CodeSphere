@@ -2,7 +2,7 @@ import { MdCreate, MdDelete, MdLocationOn, MdEmojiEvents, MdCode } from 'react-i
 import { getBgColorByRating, getColorByRating } from '../../utils/helper';
 import './FriendCard.css';
 import { useEffect, useRef, useState } from 'react';
-import { friendService } from '../../services/api';
+import { cfFetcher } from '../../utils/cfFetcher';
 
 const FriendCard = ({
   handle,
@@ -53,7 +53,7 @@ const FriendCard = ({
       if (entries[0].isIntersecting) {
         observer.disconnect();
         
-        friendService.getStats(handle)
+        cfFetcher.getStats(handle)
           .then(res => {
             if (res.data && res.data.stats) {
               setStats(res.data.stats);
@@ -69,7 +69,7 @@ const FriendCard = ({
     }
 
     return () => observer.disconnect();
-  }, [handle, stats.solvedCount]);
+  }, [handle, stats.solvedCount, loading]);
 
   // Handle case where userData might not exist yet
   if (loading || !userData) {
