@@ -50,8 +50,8 @@ const Profile = () => {
     return (
       <>
         <Navbar userInfo={authUser} showSearchBar={false} />
-        <div className="flex items-center justify-center min-h-screen px-4 text-lg text-gray-600 animate-pulse">
-          Loading profile for <span className="font-semibold">@{handle}</span>...
+        <div className="flex items-center justify-center min-h-screen px-4 text-lg text-slate-400 animate-pulse">
+          Loading profile for <span className="font-semibold text-indigo-400 ml-1">@{handle}</span>...
         </div>
       </>
     );
@@ -61,8 +61,8 @@ const Profile = () => {
     return (
       <>
         <Navbar userInfo={authUser} showSearchBar={false} />
-        <div className="flex items-center justify-center min-h-screen px-4 text-red-600 text-center">
-          Error: No user data found for <span className="font-semibold">@{handle}</span>
+        <div className="flex items-center justify-center min-h-screen px-4 text-red-400 text-center">
+          Error: No user data found for <span className="font-semibold ml-1">@{handle}</span>
         </div>
       </>
     );

@@ -10,6 +10,7 @@ const Problem = require("./models/problem.model");
 const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
+const axios = require("axios");
 const app= express();
 const jwt = require('jsonwebtoken');
 const {authenticateToken} = require("./utilities");
@@ -102,7 +103,7 @@ app.get("/get-user" ,authenticateToken, async(req, res)=>{
     const {user} = req.user;
     const isUser = await User.findOne({_id: user._id});
     if(!isUser){
-        return res.status(401)
+        return res.status(401).json({ error: true, message: "User not found" });
     }
     return res.status(200).json({user:{ fullname: isUser.fullname, codeforcesHandle: isUser.codeforcesHandle ,email: isUser.email, "_id" : isUser._id}, message:""});
 });
@@ -340,6 +341,83 @@ app.get("/search-friend/", authenticateToken, async(req,res)=>{
             error:true,
             message: "Internal Server Error",
         });
+    }
+});
+
+app.get("/friend-stats/:handle", authenticateToken, async(req, res) => {
+    const {handle} = req.params;
+    const {user} = req.user;
+
+    try {
+        const friend = await Friend.findOne({ handle, userId: user._id });
+        if (!friend) {
+            return res.status(404).json({ error: true, message: "Friend not found" });
+        }
+
+        const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+        const now = new Date();
+        const isCacheValid = friend.fetchedAt && 
+                            friend.contestCount !== undefined && 
+                            friend.problemsSolved !== undefined && 
+                            (now - new Date(friend.fetchedAt)) < SIX_HOURS_MS;
+
+        if (isCacheValid) {
+            return res.json({
+                error: false,
+                stats: {
+                    contestsCount: friend.contestCount,
+                    solvedCount: friend.problemsSolved
+                },
+                cached: true
+            });
+        }
+
+        // Fetch fresh data from Codeforces if stale or missing
+        const [ratingRes, statusRes] = await Promise.all([
+            axios.get(`https://codeforces.com/api/user.rating?handle=${handle}`).catch(() => null),
+            axios.get(`https://codeforces.com/api/user.status?handle=${handle}`).catch(() => null)
+        ]);
+
+        let contestsCount = friend.contestCount;
+        let solvedCount = friend.problemsSolved;
+        let fetchedSuccess = false;
+
+        if (ratingRes && ratingRes.data && ratingRes.data.status === 'OK') {
+            contestsCount = ratingRes.data.result.length;
+            fetchedSuccess = true;
+        }
+
+        if (statusRes && statusRes.data && statusRes.data.status === 'OK') {
+            const solved = new Set();
+            statusRes.data.result.forEach(submission => {
+                if (submission.verdict === 'OK' && submission.problem) {
+                    solved.add(`${submission.problem.contestId}-${submission.problem.index}`);
+                }
+            });
+            solvedCount = solved.size;
+            fetchedSuccess = true;
+        }
+
+        // Update DB only if at least one fetch succeeded
+        if (fetchedSuccess) {
+            if (contestsCount !== undefined) friend.contestCount = contestsCount;
+            if (solvedCount !== undefined) friend.problemsSolved = solvedCount;
+            friend.fetchedAt = now;
+            await friend.save();
+        }
+
+        return res.json({
+            error: false,
+            stats: {
+                contestsCount,
+                solvedCount
+            },
+            cached: false
+        });
+
+    } catch (error) {
+        console.error("Stats fetch error:", error);
+        return res.status(500).json({ error: true, message: "Internal Server Error" });
     }
 });
 

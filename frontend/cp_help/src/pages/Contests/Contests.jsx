@@ -21,14 +21,14 @@ export default function Contests() {
 
   const getBadgeColor = (host) => {
     const colors = {
-      codeforces: 'bg-blue-100 text-blue-800 border-blue-200',
-      codechef: 'bg-orange-100 text-orange-800 border-orange-200',
-      leetcode: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      atcoder: 'bg-slate-100 text-slate-800 border-slate-200',
-      geeksforgeeks: 'bg-green-100 text-green-800 border-green-200',
-      codingninjas: 'bg-red-100 text-red-800 border-red-200',
+      codeforces: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+      codechef: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
+      leetcode: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
+      atcoder: 'bg-slate-500/15 text-slate-300 border-slate-500/30',
+      geeksforgeeks: 'bg-green-500/15 text-green-400 border-green-500/30',
+      codingninjas: 'bg-red-500/15 text-red-400 border-red-500/30',
     };
-    return colors[host] || 'bg-purple-100 text-purple-800 border-purple-200';
+    return colors[host] || 'bg-purple-500/15 text-purple-400 border-purple-500/30';
   };
 
   return (
@@ -100,7 +100,7 @@ export default function Contests() {
                     href={c.url} 
                     target="_blank" 
                     rel="noopener noreferrer" 
-                    className="flex items-center justify-center w-full text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+                    className="flex items-center justify-center w-full text-sm font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
                   >
                     View Contest
                     <ExternalLink className="w-4 h-4 ml-2" />

@@ -1,14 +1,14 @@
 import { MdCreate, MdDelete, MdLocationOn, MdEmojiEvents, MdCode } from 'react-icons/md';
 import { getBgColorByRating, getColorByRating } from '../../utils/helper';
 import './FriendCard.css';
+import { useEffect, useRef, useState } from 'react';
+import { friendService } from '../../services/api';
 
 const FriendCard = ({
   handle,
   name,
   date,
   userData,
-  solvedCount,
-  contestsCount,
   loading,
   onEdit,
   onDelete,
@@ -40,6 +40,36 @@ const FriendCard = ({
       return 'linear-gradient(135deg, #4d1a1a 0%, #2d0d0d 50%, #140505 100%)';
     }
   };
+
+  const [stats, setStats] = useState({ solvedCount: undefined, contestsCount: undefined });
+  const [loadingStats, setLoadingStats] = useState(true);
+  const cardRef = useRef(null);
+
+  useEffect(() => {
+    // Only fetch if stats are undefined
+    if (stats.solvedCount !== undefined) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        observer.disconnect();
+        
+        friendService.getStats(handle)
+          .then(res => {
+            if (res.data && res.data.stats) {
+              setStats(res.data.stats);
+            }
+          })
+          .catch(err => console.error("Failed to load stats for", handle))
+          .finally(() => setLoadingStats(false));
+      }
+    }, { threshold: 0.1 });
+
+    if (cardRef.current) {
+      observer.observe(cardRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [handle, stats.solvedCount]);
 
   // Handle case where userData might not exist yet
   if (loading || !userData) {
@@ -86,6 +116,7 @@ const FriendCard = ({
 
   return (
     <div 
+      ref={cardRef}
       className="rounded-xl shadow-xl hover:shadow-2xl transition-all duration-500 flex flex-col h-full relative border border-white/10"
       style={{ background: cardBackground }}
     >
@@ -136,14 +167,14 @@ const FriendCard = ({
             <MdEmojiEvents className="text-yellow-400 mx-auto mb-1" />
             <p className="text-xs text-gray-300 uppercase font-semibold">Contests</p>
             <p className="font-bold text-sm text-white">
-              {contestsCount !== undefined ? contestsCount : '...'}
+              {loadingStats ? <span className="animate-pulse">...</span> : (stats.contestsCount !== undefined ? stats.contestsCount : '-')}
             </p>
           </div>
           <div className="metallic-stat rounded-lg p-2 text-center">
             <MdCode className="text-blue-400 mx-auto mb-1" />
             <p className="text-xs text-gray-300 uppercase font-semibold">Solved</p>
             <p className="font-bold text-sm text-white">
-              {solvedCount !== undefined ? solvedCount : '...'}
+              {loadingStats ? <span className="animate-pulse">...</span> : (stats.solvedCount !== undefined ? stats.solvedCount : '-')}
             </p>
           </div>
         </div>

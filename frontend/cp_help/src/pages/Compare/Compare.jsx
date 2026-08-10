@@ -45,8 +45,8 @@ const rankColors = {
 function StatBox({ label, value }) {
   return (
     <div className="bg-slate-800/60 p-3 rounded-lg border border-slate-700 shadow-sm backdrop-blur-sm">
-      <div className="text-slate-500 text-xs font-medium uppercase tracking-wider mb-1">{label}</div>
-      <div className="text-lg font-bold text-slate-800">{value}</div>
+      <div className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">{label}</div>
+      <div className="text-lg font-bold text-white">{value}</div>
     </div>
   );
 }
@@ -66,7 +66,7 @@ function UserCard({ stats }) {
         <img
           src={avatar}
           alt={`${handle} avatar`}
-          className="w-16 h-16 rounded-full border-2 border-slate-200 mr-4 shadow-sm"
+          className="w-16 h-16 rounded-full border-2 border-slate-600 mr-4 shadow-sm"
         />
         <div>
           <h3 className="text-2xl font-bold text-white">{handle}</h3>
@@ -81,7 +81,7 @@ function UserCard({ stats }) {
             )}
           </div>
           {organization && (
-            <p className="text-slate-500 text-sm mt-2">{organization}</p>
+            <p className="text-slate-400 text-sm mt-2">{organization}</p>
           )}
         </div>
       </div>
@@ -227,7 +227,7 @@ const Compare = () => {
         <div className="bg-slate-800/80 backdrop-blur-md p-8 rounded-2xl shadow-sm border border-slate-700 mb-8">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-white tracking-tight">Compare Profiles</h1>
-            <p className="text-slate-500 mt-2">Enter two Codeforces handles to compare their stats, ratings, and solved problems.</p>
+            <p className="text-slate-400 mt-2">Enter two Codeforces handles to compare their stats, ratings, and solved problems.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-4 max-w-3xl mx-auto">
@@ -237,7 +237,7 @@ const Compare = () => {
                 placeholder="First handle"
                 value={user1}
                 onChange={(e) => setUser1(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
+                className="w-full px-4 py-3 rounded-lg bg-slate-800/50 border border-slate-600 text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
                 required
               />
             </div>
@@ -247,7 +247,7 @@ const Compare = () => {
                 placeholder="Second handle"
                 value={user2}
                 onChange={(e) => setUser2(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
+                className="w-full px-4 py-3 rounded-lg bg-slate-800/50 border border-slate-600 text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
                 required
               />
             </div>
@@ -262,7 +262,7 @@ const Compare = () => {
           </form>
 
           {error && (
-            <div className="mt-6 flex items-center justify-center gap-2 text-red-600 bg-red-50 p-4 rounded-lg">
+            <div className="mt-6 flex items-center justify-center gap-2 text-red-400 bg-red-500/10 border border-red-500/20 p-4 rounded-lg">
               <AlertCircle className="w-5 h-5" />
               <span>{error}</span>
             </div>
@@ -280,13 +280,35 @@ const Compare = () => {
               <div className="bg-slate-800/80 backdrop-blur-md p-6 rounded-xl shadow-sm border border-slate-700 h-[400px]">
                 <Line 
                   data={lineData} 
-                  options={{ responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: "Contest Rating Progress" } }, scales: { x: { type: "time", time: { unit: "month" } } } }} 
+                  options={{ 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { 
+                      title: { display: true, text: "Contest Rating Progress", color: "rgba(255,255,255,0.8)" },
+                      legend: { labels: { color: "rgba(255,255,255,0.7)" } }
+                    }, 
+                    scales: { 
+                      x: { type: "time", time: { unit: "month" }, ticks: { color: "rgba(255,255,255,0.6)" }, grid: { color: "rgba(255,255,255,0.1)" } },
+                      y: { ticks: { color: "rgba(255,255,255,0.6)" }, grid: { color: "rgba(255,255,255,0.1)" } }
+                    } 
+                  }} 
                 />
               </div>
               <div className="bg-slate-800/80 backdrop-blur-md p-6 rounded-xl shadow-sm border border-slate-700 h-[400px]">
                 <Bar 
                   data={ratingBarData} 
-                  options={{ responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: "Problems by Difficulty" } } }} 
+                  options={{ 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { 
+                      title: { display: true, text: "Problems by Difficulty", color: "rgba(255,255,255,0.8)" },
+                      legend: { labels: { color: "rgba(255,255,255,0.7)" } }
+                    },
+                    scales: { 
+                      x: { ticks: { color: "rgba(255,255,255,0.6)" }, grid: { display: false } },
+                      y: { ticks: { color: "rgba(255,255,255,0.6)" }, grid: { color: "rgba(255,255,255,0.1)" } }
+                    }
+                  }} 
                 />
               </div>
             </div>
@@ -294,7 +316,19 @@ const Compare = () => {
             <div className="bg-slate-800/80 backdrop-blur-md p-6 rounded-xl shadow-sm border border-slate-700 h-[500px]">
               <Bar 
                 data={tagBarData} 
-                options={{ indexAxis: "x", responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: "Problems by Tag" } } }} 
+                options={{ 
+                  indexAxis: "x", 
+                  responsive: true, 
+                  maintainAspectRatio: false, 
+                  plugins: { 
+                    title: { display: true, text: "Problems by Tag", color: "rgba(255,255,255,0.8)" },
+                    legend: { labels: { color: "rgba(255,255,255,0.7)" } }
+                  },
+                  scales: { 
+                    x: { ticks: { color: "rgba(255,255,255,0.6)" }, grid: { display: false } },
+                    y: { ticks: { color: "rgba(255,255,255,0.6)" }, grid: { color: "rgba(255,255,255,0.1)" } }
+                  }
+                }} 
               />
             </div>
           </div>

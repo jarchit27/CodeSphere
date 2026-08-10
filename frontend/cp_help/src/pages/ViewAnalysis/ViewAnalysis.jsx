@@ -124,9 +124,9 @@ const ViewAnalysis = ({ profileData, ratingHistory, submissions }) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[500px] bg-transparent">
-        <div className="text-center p-8 bg-white rounded-lg shadow-lg">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <div className="text-lg font-medium text-gray-700">Loading analysis for <span className="font-bold text-blue-600">@{profileData?.handle}</span>...</div>
+        <div className="text-center p-8 bg-slate-800/80 backdrop-blur-md rounded-xl shadow-lg border border-slate-700">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mx-auto mb-4"></div>
+          <div className="text-lg font-medium text-slate-300">Loading analysis for <span className="font-bold text-indigo-400">@{profileData?.handle}</span>...</div>
         </div>
       </div>
     );
@@ -153,17 +153,17 @@ const ViewAnalysis = ({ profileData, ratingHistory, submissions }) => {
                 </div>
               </div>
               <div className="ml-auto hidden md:flex">
-                <div className="bg-white bg-opacity-20 rounded-lg p-4">
-                  <div className="grid grid-cols-2 gap-4 text-center">
+                <div className="bg-slate-800/80 backdrop-blur-md rounded-xl p-4 border border-slate-700 shadow-sm min-w-[200px]">
+                  <div className="grid grid-cols-2 gap-6 text-center">
                     <div>
-                      <div className="text-sm">Max Rating</div>
-                      <div className={`text-xl font-bold ${getColorByRating(profileData.maxRating)}`}>
+                      <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Max Rating</div>
+                      <div className={`text-2xl font-bold ${getColorByRating(profileData.maxRating)}`}>
                         {profileData.maxRating || 'N/A'}
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm">Contribution</div>
-                      <div className={`text-xl font-bold ${profileData.contribution >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Contribution</div>
+                      <div className={`text-2xl font-bold ${profileData.contribution >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {profileData.contribution > 0 ? '+' : ''}{profileData.contribution || 0}
                       </div>
                     </div>

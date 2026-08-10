@@ -10,11 +10,12 @@ export const authService = {
 
 // Friends Endpoints
 export const friendService = {
-  getAll: () => axiosInstance.get('/get-all-friends/'),
-  add: (friendData) => axiosInstance.post('/add-friend', friendData),
-  edit: (friendId, data) => axiosInstance.put(`/edit-friend/${friendId}`, data),
-  delete: (friendId) => axiosInstance.delete(`/delete-friend/${friendId}`),
+  add: (data) => axiosInstance.post('/add-friend', data),
+  edit: (id, data) => axiosInstance.put(`/edit-friend/${id}`, data),
+  delete: (id) => axiosInstance.delete(`/delete-friend/${id}`),
+  getAll: () => axiosInstance.get('/get-all-friends'),
   search: (query) => axiosInstance.get(`/search-friend/?query=${query}`),
+  getStats: (handle) => axiosInstance.get(`/friend-stats/${handle}`)
 };
 
 // Problems Endpoints

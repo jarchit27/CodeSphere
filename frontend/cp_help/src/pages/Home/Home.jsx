@@ -17,8 +17,6 @@ const Home = () => {
   });
 
   const [userInfoMap, setUserInfoMap] = useState({});
-  const [solvedCountMap, setSolvedCountMap] = useState({});
-  const [contestsCountMap, setContestsCountMap] = useState({});
   const [loadingUserInfo, setLoadingUserInfo] = useState(true);
 
   const navigate = useNavigate();
@@ -66,38 +64,18 @@ const Home = () => {
   };
 
   const fetchBatchUserData = async (friends) => {
-    if (!friends || friends.length === 0) return;
+    if (!friends || friends.length === 0) {
+      setLoadingUserInfo(false);
+      return;
+    }
     
     setLoadingUserInfo(true);
     const handles = friends.map(f => f.handle).join(';');
     
     try {
-      // Batch fetch user info (single request for all users)
-      const userInfoPromise = fetch(`https://codeforces.com/api/user.info?handles=${handles}`)
-        .then(res => res.json());
+      const userInfoResponse = await fetch(`https://codeforces.com/api/user.info?handles=${handles}`);
+      const userInfoData = await userInfoResponse.json();
 
-      // Fire all rating requests concurrently
-      const ratingPromises = friends.map(friend => 
-        fetch(`https://codeforces.com/api/user.rating?handle=${friend.handle}`)
-          .then(res => res.json())
-          .catch(() => ({ status: 'FAILED', result: [] }))
-      );
-
-      // Fire all submission requests concurrently
-      const submissionPromises = friends.map(friend => 
-        fetch(`https://codeforces.com/api/user.status?handle=${friend.handle}`)
-          .then(res => res.json())
-          .catch(() => ({ status: 'FAILED', result: [] }))
-      );
-
-      const [userInfoData, ...ratingResults] = await Promise.all([
-        userInfoPromise,
-        ...ratingPromises
-      ]);
-
-      const submissionResults = await Promise.all(submissionPromises);
-
-      // Process user info
       if (userInfoData.status === 'OK') {
         const infoMap = {};
         userInfoData.result.forEach(user => {
@@ -105,33 +83,6 @@ const Home = () => {
         });
         setUserInfoMap(infoMap);
       }
-
-      // Process ratings
-      const contestsMap = {};
-      ratingResults.forEach((ratingData, index) => {
-        const handle = friends[index].handle;
-        contestsMap[handle] = ratingData.status === 'OK' ? ratingData.result.length : 0;
-      });
-      setContestsCountMap(contestsMap);
-
-      // Process submissions
-      const solvedMap = {};
-      submissionResults.forEach((submissionData, index) => {
-        const handle = friends[index].handle;
-        if (submissionData.status === 'OK') {
-          const solved = new Set();
-          submissionData.result.forEach((submission) => {
-            if (submission.verdict === 'OK') {
-              solved.add(`${submission.problem.contestId}-${submission.problem.index}`);
-            }
-          });
-          solvedMap[handle] = solved.size;
-        } else {
-          solvedMap[handle] = 0;
-        }
-      });
-      setSolvedCountMap(solvedMap);
-
     } catch (error) {
       console.error('Error during batch fetch:', error);
     } finally {
@@ -206,8 +157,6 @@ const Home = () => {
                   date={f.createdOn}
                   name={f.name}
                   userData={userInfoMap[f.handle]}
-                  solvedCount={solvedCountMap[f.handle]}
-                  contestsCount={contestsCountMap[f.handle]}
                   loading={loadingUserInfo}
                   onEdit={() => handleEdit(f)}
                   onDelete={() => handleDelete(f)}
