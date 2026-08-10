@@ -27,28 +27,28 @@ CodeSphere uses an optimized serverless-hybrid architecture. The backend manages
 ```mermaid
 sequenceDiagram
     participant User
-    participant React UI
-    participant cfFetcher (Queue)
-    participant Node Backend
-    participant MongoDB
-    participant Codeforces API
+    participant React as React UI
+    participant Queue as cfFetcher (Queue)
+    participant Node as Node Backend
+    participant Mongo as MongoDB
+    participant CF as Codeforces API
 
-    User->>React UI: Opens Dashboard
-    React UI->>Node Backend: GET /get-all-friends
-    Node Backend->>MongoDB: Fetch friends list
-    MongoDB-->>Node Backend: Return friends
-    Node Backend-->>React UI: Returns handles & names
+    User->>React: Opens Dashboard
+    React->>Node: GET /get-all-friends
+    Node->>Mongo: Fetch friends list
+    Mongo-->>Node: Return friends
+    Node-->>React: Returns handles & names
     
-    Note over React UI, Codeforces API: Initial Batch Fetch
-    React UI->>Codeforces API: Batch GET user.info (for ranks/ratings)
-    Codeforces API-->>React UI: Returns user details
+    Note over React, CF: Initial Batch Fetch
+    React->>CF: Batch GET user.info (for ranks/ratings)
+    CF-->>React: Returns user details
     
-    Note over React UI, Codeforces API: Visual Lazy Loading Phase (Heavy Stats)
-    React UI->>cfFetcher (Queue): User scrolls to friend card
-    cfFetcher (Queue)->>cfFetcher (Queue): Check localStorage cache
-    cfFetcher (Queue)->>Codeforces API: Direct API calls (user.rating, user.status)
-    Codeforces API-->>cfFetcher (Queue): Returns live stats
-    cfFetcher (Queue)-->>React UI: Updates UI instantly!
+    Note over React, CF: Visual Lazy Loading Phase (Heavy Stats)
+    React->>Queue: User scrolls to friend card
+    Queue->>Queue: Check localStorage cache
+    Queue->>CF: Direct API calls (user.rating, user.status)
+    CF-->>Queue: Returns live stats
+    Queue-->>React: Updates UI instantly!
 ```
 
 ---
