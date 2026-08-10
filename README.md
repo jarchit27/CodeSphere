@@ -5,11 +5,6 @@
 **Your ultimate companion for tracking Codeforces progress among friends.**  
 A sleek, lightning-fast dashboard to monitor ratings, solved problems, and upcoming contests.
 
-![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
-![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)
-![MongoDB](https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white)
-![Codeforces](https://img.shields.io/badge/Codeforces-445f9d?style=for-the-badge&logo=Codeforces&logoColor=white)
-
 </div>
 
 ---
@@ -48,14 +43,12 @@ sequenceDiagram
     React UI->>Codeforces API: Batch GET user.info (for ranks/ratings)
     Codeforces API-->>React UI: Returns user details
     
-    rect rgb(20, 20, 30)
     Note over React UI, Codeforces API: Visual Lazy Loading Phase (Heavy Stats)
     React UI->>cfFetcher (Queue): User scrolls to friend card
     cfFetcher (Queue)->>cfFetcher (Queue): Check localStorage cache
     cfFetcher (Queue)->>Codeforces API: Direct API calls (user.rating, user.status)
     Codeforces API-->>cfFetcher (Queue): Returns live stats
     cfFetcher (Queue)-->>React UI: Updates UI instantly!
-    end
 ```
 
 ---
