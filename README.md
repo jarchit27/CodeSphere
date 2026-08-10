@@ -3,7 +3,8 @@
 # 🌌 CodeSphere
 
 **Your ultimate companion for tracking Codeforces progress among friends.**  
-A sleek, lightning-fast dashboard to monitor ratings, solved problems, and upcoming contests.
+
+A sleek, lightning-fast dashboard to monitor live ratings, solved problems, and upcoming contests without ever getting IP banned by Codeforces! Built with modern React and Node.js.
 
 </div>
 
@@ -11,49 +12,149 @@ A sleek, lightning-fast dashboard to monitor ratings, solved problems, and upcom
 
 ## ✨ Features
 
-- **Live Codeforces Integration:** Automatically fetches live ratings, ranks, contribution points, and total solved problems for your friends.
-- **Frontend Lazy-Loading Engine:** Solved problems and stats are lazy-loaded via a sophisticated frontend queue manager, completely bypassing backend rate-limiting!
-- **Lightning Fast Caching:** Zero-latency browser `localStorage` caching ensures stats remain persistent across reloads.
-- **Optimistic UI:** Buttery smooth user experience. Adding or deleting a friend instantly updates the UI without flashing skeletons or full-page reloads.
+- **Live Codeforces Integration:** Automatically fetches live ratings, ranks, contribution points, and total solved problems for your friends directly from the official Codeforces API.
+- **Frontend Lazy-Loading Engine:** Solved problems and stats are lazy-loaded via a sophisticated frontend queue manager (`cfFetcher`), completely bypassing backend rate-limiting!
+- **Lightning Fast Caching:** Zero-latency browser `localStorage` caching ensures your heavy stats remain persistent across reloads for up to 6 hours.
+- **Optimistic UI:** Buttery smooth user experience. Adding or deleting a friend instantly updates the UI without flashing skeletons or causing full-page reloads.
+- **In-Depth Analysis:** Click on **View Analysis** for any friend to see beautiful graphs and charts of their submission history and rating changes (powered by Recharts and Chart.js).
 - **Dynamic Colored Ranks:** Friend cards dynamically match the official Codeforces rating colors (Newbie Gray ➔ Legendary Grandmaster Red).
-- **Search & Filter:** Quickly find friends by handle or name using the real-time search bar.
+- **Secure Authentication:** Keep your tracked friends private with JWT-based authentication and secure MongoDB storage.
+
+---
+
+## 🛠️ Tech Stack
+
+### Frontend
+- **Framework:** React 19 + Vite
+- **Styling:** Tailwind CSS 4
+- **Animations:** Framer Motion
+- **Icons & UI:** Lucide React, React Icons, React Modal
+- **Data Visualization:** Chart.js, Recharts, React Calendar Heatmap
+
+### Backend
+- **Environment:** Node.js + Express
+- **Database:** MongoDB via Mongoose
+- **Security:** JWT (JSON Web Tokens), bcryptjs
+- **Utilities:** Cheerio (for occasional scraping needs)
+
+---
+
+## 📂 Directory Structure
+
+```text
+CodeSphere/
+├── backend/
+│   ├── models/            # Mongoose schemas (User, Friend, etc.)
+│   ├── routes/            # Express API routes (Auth, Friends)
+│   ├── index.js           # Main Express server entry point
+│   ├── package.json       # Backend dependencies
+│   └── .env               # Secrets (JWT, MongoDB URI)
+│
+└── frontend/cp_help/
+    ├── src/
+    │   ├── components/    # Reusable UI (Cards, Navbar, Modals)
+    │   ├── pages/         # Core views (Home, Profile, Contests)
+    │   ├── utils/         # Core utilities (cfFetcher.js queue engine)
+    │   ├── App.jsx        # React Router configuration
+    │   └── index.css      # Tailwind CSS directives & global styles
+    ├── index.html         # Main HTML entry point
+    ├── vite.config.js     # Vite bundler configuration
+    └── package.json       # Frontend dependencies
+```
 
 ---
 
 ## 🏗️ Architecture & Data Flow
 
-CodeSphere uses an optimized serverless-hybrid architecture. The backend manages authentication and your friends list, while your personal browser talks directly to Codeforces to fetch massive statistics files. This distributed fetching completely protects the application from IP bans.
+CodeSphere uses an optimized serverless-hybrid architecture. The backend strictly manages authentication and your friends list. Meanwhile, your personal browser talks directly to Codeforces to fetch massive statistics files. This distributed fetching architecture completely protects the application server from IP bans.
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant React UI
-    participant cfFetcher (Queue)
-    participant Node Backend
-    participant MongoDB
-    participant Codeforces API
+    participant React as React UI
+    participant Queue as cfFetcher (Queue)
+    participant Node as Node Backend
+    participant Mongo as MongoDB
+    participant CF as Codeforces API
 
-    User->>React UI: Opens Dashboard
-    React UI->>Node Backend: GET /get-all-friends
-    Node Backend->>MongoDB: Fetch friends list
-    MongoDB-->>Node Backend: Return friends
-    Node Backend-->>React UI: Returns handles & names
+    User->>React: Opens Dashboard
+    React->>Node: GET /get-all-friends
+    Node->>Mongo: Fetch friends list
+    Mongo-->>Node: Return friends
+    Node-->>React: Returns handles & names
     
-    Note over React UI, Codeforces API: Initial Batch Fetch
-    React UI->>Codeforces API: Batch GET user.info (for ranks/ratings)
-    Codeforces API-->>React UI: Returns user details
+    Note over React, CF: Initial Batch Fetch
+    React->>CF: Batch GET user.info (for ranks/ratings)
+    CF-->>React: Returns user details
     
-    Note over React UI, Codeforces API: Visual Lazy Loading Phase (Heavy Stats)
-    React UI->>cfFetcher (Queue): User scrolls to friend card
-    cfFetcher (Queue)->>cfFetcher (Queue): Check localStorage cache
-    cfFetcher (Queue)->>Codeforces API: Direct API calls (user.rating, user.status)
-    Codeforces API-->>cfFetcher (Queue): Returns live stats
-    cfFetcher (Queue)-->>React UI: Updates UI instantly!
+    Note over React, CF: Visual Lazy Loading Phase (Heavy Stats)
+    React->>Queue: User scrolls to friend card
+    Queue->>Queue: Check localStorage cache
+    Queue->>CF: Direct API calls (user.rating, user.status)
+    CF-->>Queue: Returns live stats
+    Queue-->>React: Updates UI instantly!
 ```
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Performance Optimizations (Deep Dive)
+
+### 1. The `cfFetcher` Queue Engine
+Fetching `user.status` for users with thousands of submissions (like tourist) can result in payloads of 10MB+. If the backend attempts to fetch this for 50 friends simultaneously, Codeforces blocks the IP address. 
+
+To solve this, CodeSphere employs a custom frontend Singleton queue (`cfFetcher.js`).
+- **Concurrency Control:** The queue strictly limits active outbound Codeforces requests to 3 at a time.
+- **Deduplication:** Solved problems are carefully deduplicated by `submission.problem.name` or `contestId-index` matching the exact official Codeforces profile logic.
+- **Timeouts:** Built-in sleep functions wait 250ms between requests to gracefully respect the API.
+
+### 2. Zero-Latency Caching
+Codeforces stats change frequently during contests but are relatively static otherwise. CodeSphere caches heavy API payloads in the browser's `localStorage` for **6 hours**. 
+When you refresh the dashboard, the data loads instantly from memory with exactly 0 API calls required.
+
+### 3. Optimistic UI Updates
+Traditional React apps wait for a `POST /add-friend` request to finish before updating the screen. CodeSphere uses Optimistic UI:
+- When you delete a friend, they instantly vanish from the UI.
+- The server request happens silently in the background.
+- This entirely eliminates the jarring "flicker" and Skeleton loaders usually associated with CRUD operations.
+
+---
+
+## 📡 Backend API Reference
+
+The Node.js backend serves as a secure gateway for Authentication and basic User data.
+
+### Authentication Routes
+| Method | Endpoint | Description | Body |
+|--------|----------|-------------|------|
+| `POST` | `/api/auth/register` | Register a new user | `{ email, password }` |
+| `POST` | `/api/auth/login` | Login and receive a JWT | `{ email, password }` |
+
+### Friend Management Routes
+*All these routes require a valid `Authorization: Bearer <token>` header.*
+
+| Method | Endpoint | Description | Body |
+|--------|----------|-------------|------|
+| `GET`  | `/api/friends/get-all` | Fetches the user's friend list | `None` |
+| `POST` | `/api/friends/add` | Adds a new friend to track | `{ handle, name }` |
+| `PUT`  | `/api/friends/update/:id` | Updates a friend's details | `{ handle, name }` |
+| `DELETE`| `/api/friends/delete/:id` | Deletes a tracked friend | `None` |
+
+---
+
+## 💻 Code Architecture Walkthrough
+
+### The `FriendCard` Component
+The workhorse of the dashboard. It implements an `IntersectionObserver` to detect when it enters the viewport. Until you scroll down to see a friend, their heavy stats (Contests/Solved) are completely ignored. Once visible, the card dispatches a request to the `cfFetcher` engine.
+
+### The Profile Dashboard (`Profile.jsx`)
+A dedicated analytical view for a single user. It compiles data from three separate Codeforces endpoints (`user.info`, `user.rating`, `user.status`) and pipes them through Chart.js adapters to render:
+- **Rating History Line Chart:** Tracks progress over time.
+- **Submission Heatmap:** GitHub-style contribution grid of daily problem-solving activity.
+- **Language Distribution:** Pie chart breaking down C++, Python, and Java usage.
+
+---
+
+## ⚙️ Getting Started
 
 ### Prerequisites
 - [Node.js](https://nodejs.org/) installed
@@ -100,9 +201,11 @@ Your app will be running at `http://localhost:5173`. Enjoy tracking! 🚀
 
 ---
 
-## 🛠️ Built With
+## 🔮 Future Roadmap
+- [ ] Add support for AtCoder and LeetCode tracking.
+- [ ] Implement WebSockets for live notifications when a friend submits a problem.
+- [ ] Add Dark/Light mode toggles (currently defaults to an immersive Dark Theme).
+- [ ] Group friends by custom tags (e.g., "College", "Rivals").
 
-* **Frontend:** React, Vite, Axios, React Icons, React Modal
-* **Backend:** Node.js, Express, Mongoose, JWT (JSON Web Tokens), bcryptjs
-* **Database:** MongoDB
-* **External APIs:** Codeforces API (`user.rating`, `user.info`, `user.status`)
+## 📝 License
+Distributed under the MIT License. See `LICENSE` for more information.
