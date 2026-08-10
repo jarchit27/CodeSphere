@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar/Navbar';
 import { useNavigate } from 'react-router-dom';
-import axiosInstance from '../../utils/axiosInstance';
+import { problemService } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import { Search, Plus, Tag, ChevronDown, ChevronUp, X } from 'lucide-react';
 
 // Constants for platform and difficulty options based on your schema
@@ -9,7 +10,7 @@ const PLATFORMS = ['LeetCode', 'Codeforces', 'CodeChef', 'GeeksforGeeks', 'Hacke
 const DIFFICULTY = ['Easy', 'Medium', 'Hard'];
 
 const Problems = () => {
-  const [userInfo, setUserInfo] = useState("");
+  const { user: userInfo } = useAuth();
   const navigate = useNavigate();
   
   // State for managing problems
@@ -40,26 +41,11 @@ const Problems = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [addSuccess, setAddSuccess] = useState(false);
   
-  // Fetch user info
-  const getUserInfo = async() => {
-    try {
-      const response = await axiosInstance.get("/get-user");
-      if(response.data && response.data.user) {
-        setUserInfo(response.data.user);
-      }
-    } catch(error) {
-      if(error.response && error.response.status === 401) {
-        localStorage.clear();
-        navigate("/login");
-      }
-    }
-  };
-  
   // Fetch all problems
   const fetchProblems = async() => {
     setIsLoading(true);
     try {
-      const response = await axiosInstance.get("/get-all-problems/");
+      const response = await problemService.getAll();
       if(response.data && response.data.problems) {
         setProblems(response.data.problems);
         
@@ -99,7 +85,7 @@ const Problems = () => {
     if (Object.keys(errors).length === 0) {
       setIsSubmitting(true);
       try {
-        const response = await axiosInstance.post("/add-problem", formData);
+        const response = await problemService.add(formData);
         if(response.data && !response.data.error) {
           setAddSuccess(true);
           // Add new problem to the list
@@ -141,7 +127,7 @@ const Problems = () => {
   // Delete problem
   const handleDeleteProblem = async(problemId) => {
     try {
-      const response = await axiosInstance.delete(`/delete-problem/${problemId}`);
+      const response = await problemService.delete(problemId);
       if(response.data && !response.data.error) {
         // Remove problem from list
         setProblems(problems.filter(problem => problem._id !== problemId));
@@ -238,13 +224,12 @@ const Problems = () => {
   
   // Load data when component mounts
   useEffect(() => {
-    getUserInfo();
     fetchProblems();
     return () => {};
   }, []);
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-800">
+    <div className="min-h-screen bg-transparent">
       <Navbar userInfo={userInfo} showSearchBar={false}></Navbar>
       
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">

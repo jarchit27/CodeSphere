@@ -1,4 +1,5 @@
 import axiosInstance from '../utils/axiosInstance';
+import axios from 'axios';
 
 // Auth Endpoints
 export const authService = {
@@ -21,4 +22,9 @@ export const problemService = {
   getAll: () => axiosInstance.get('/get-all-problems/'),
   add: (problemData) => axiosInstance.post('/add-problem', problemData),
   delete: (problemId) => axiosInstance.delete(`/delete-problem/${problemId}`),
+};
+
+// External Endpoints
+export const contestService = {
+  getUpcoming: () => axios.get('https://api.digitomize.com/contests'),
 };

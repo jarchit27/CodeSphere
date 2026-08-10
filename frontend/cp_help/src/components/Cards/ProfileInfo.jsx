@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/solid';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { getInitials } from '../../utils/helper';
 
 const ProfileInfo = ({ userInfo, onLogout, showProfile }) => {
@@ -24,7 +24,7 @@ const ProfileInfo = ({ userInfo, onLogout, showProfile }) => {
       {/* Initials Circle */}
       <button
         onClick={() => setOpen((prev) => !prev)}
-        className="h-10 w-10 sm:h-12 sm:w-12 flex items-center justify-center rounded-full text-black text-base sm:text-lg font-semibold bg-slate-100 focus:outline-none"
+        className="h-10 w-10 flex items-center justify-center rounded-full text-indigo-300 text-sm font-bold bg-indigo-600/30 hover:bg-indigo-600/50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-slate-900"
         aria-haspopup="true"
         aria-expanded={open}
         aria-label="User menu"
@@ -34,37 +34,41 @@ const ProfileInfo = ({ userInfo, onLogout, showProfile }) => {
 
       <button
         onClick={() => setOpen((prev) => !prev)}
-        className="focus:outline-none p-1 sm:p-2"
+        className="focus:outline-none p-1 text-slate-400 hover:text-white transition-colors rounded-md hover:bg-slate-700"
         aria-hidden="true"
         aria-label={open ? 'Close menu' : 'Open menu'}
       >
         {open ? (
-          <ChevronUpIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
+          <ChevronUp className="w-4 h-4" />
         ) : (
-          <ChevronDownIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
+          <ChevronDown className="w-4 h-4" />
         )}
       </button>
 
       {open && (
         <div
-          className="absolute right-0 top-full mt-2 w-40 sm:w-48 bg-white border rounded-md shadow-md z-30"
+          className="absolute right-0 top-full mt-2 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden py-1 animate-in fade-in slide-in-from-top-2 duration-200"
           role="menu"
           aria-orientation="vertical"
           aria-labelledby="user-menu"
         >
+          <div className="px-4 py-3 border-b border-slate-700 mb-1">
+            <p className="text-sm font-medium text-white truncate">{userInfo.fullname}</p>
+            <p className="text-xs text-slate-400 truncate">@{userInfo.codeforcesHandle}</p>
+          </div>
           <button
-            onClick={showProfile}
-            className="block px-3 py-2 w-full text-left text-sm sm:text-base hover:bg-gray-100"
+            onClick={() => { setOpen(false); showProfile(); }}
+            className="block px-4 py-2 w-full text-left text-sm text-slate-200 hover:bg-slate-800 hover:text-indigo-400 transition-colors"
             role="menuitem"
           >
             My Profile
           </button>
           <button
-            onClick={onLogout}
-            className="block px-3 py-2 w-full text-left text-red-600 text-sm sm:text-base hover:bg-gray-100"
+            onClick={() => { setOpen(false); onLogout(); }}
+            className="block px-4 py-2 w-full text-left text-sm text-red-400 hover:bg-red-500/10 transition-colors"
             role="menuitem"
           >
-            Logout
+            Sign out
           </button>
         </div>
       )}

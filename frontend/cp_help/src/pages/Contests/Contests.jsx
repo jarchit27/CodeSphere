@@ -1,32 +1,17 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
-import { useNavigate } from "react-router-dom";
-import "./Contests.css";
+import { contestService } from "../../services/api";
+import Navbar from "../../components/Navbar/Navbar";
+import { useAuth } from "../../context/AuthContext";
+import { Calendar, Clock, ExternalLink, AlertCircle, Loader2 } from "lucide-react";
 
 export default function Contests() {
+  const { user } = useAuth();
   const [contests, setContests] = useState(null);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState(false);
-  const navigate = useNavigate();
-
-  const textToBinary = (text) => {
-    return text.slice(0, 8).split('').map(char => 
-      char.charCodeAt(0).toString(2).padStart(8, '0')
-    ).join('').slice(0, 8);
-  };
-
-  const generateBinaryPattern = (contestName, index) => {
-    const patterns = [
-      textToBinary("CONTEST"), textToBinary("CODING"), textToBinary("BATTLE"),
-      textToBinary("FIGHT"), textToBinary("WIN"), textToBinary("CODE"),
-      textToBinary("ALGO"), textToBinary("DATA"),
-    ];
-    const hash = contestName.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
-    return patterns[hash % patterns.length];
-  };
 
   useEffect(() => {
-    axios.get("https://api.digitomize.com/contests")
+    contestService.getUpcoming()
       .then((res) => {
         setTotal(res.data.total || 0);
         setContests(res.data.results || []);
@@ -34,123 +19,98 @@ export default function Contests() {
       .catch(() => setError(true));
   }, []);
 
-  if (error) {
-    return (
-      <div className="contests-container">
-        <div className="stars"></div>
-        <div className="contests-error">
-          <div className="error-icon">⚠️</div>
-          <p>Connection to contest database failed</p>
-          <span className="error-code">[ERROR_404_NETWORK]</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (contests === null) {
-    return (
-      <div className="contests-container">
-        <div className="stars"></div>
-        <div className="contests-loading">
-          <div className="loading-spinner"></div>
-          <p>Fetching contest data...</p>
-          <span className="loading-code">[LOADING_CONTESTS.EXE]</span>
-        </div>
-      </div>
-    );
-  }
+  const getBadgeColor = (host) => {
+    const colors = {
+      codeforces: 'bg-blue-100 text-blue-800 border-blue-200',
+      codechef: 'bg-orange-100 text-orange-800 border-orange-200',
+      leetcode: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      atcoder: 'bg-slate-100 text-slate-800 border-slate-200',
+      geeksforgeeks: 'bg-green-100 text-green-800 border-green-200',
+      codingninjas: 'bg-red-100 text-red-800 border-red-200',
+    };
+    return colors[host] || 'bg-purple-100 text-purple-800 border-purple-200';
+  };
 
   return (
-    <div className="contests-container">
-      <div className="stars"></div>
-      <div className="lightning"></div>
+    <div className="min-h-screen bg-transparent text-slate-200">
+      <Navbar userInfo={user} showSearchBar={false} />
       
-      <div className="contests-content">
-        <header className="contests-header">
-          <div className="header-left">
-            <h1 className="contests-title">
-              <span className="title-bracket">&lt;</span>
-              <span className="title-text">Upcoming Contests</span>
-              <span className="title-bracket">/&gt;</span>
-            </h1>
-            <div className="contests-stats">
-              <span className="stat-item">
-                <span className="stat-label">TOTAL:</span>
-                <span className="stat-value">{total}</span>
-              </span>
-              <span className="binary-decoration">{textToBinary("TOTAL")}</span>
-            </div>
+      <main className="container mx-auto px-4 py-8 max-w-7xl">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-white tracking-tight">Upcoming Contests</h1>
+            <p className="text-slate-400 mt-1">Discover and track competitive programming contests.</p>
           </div>
-          
-          <button className="home-btn" onClick={() => navigate("/dashboard")}>
-            <span>DASHBOARD</span>
-          </button>
-        </header>
+          <div className="bg-slate-800/80 backdrop-blur-md px-4 py-2 rounded-lg shadow-sm border border-slate-700 flex items-center gap-2">
+            <span className="text-sm font-medium text-slate-500">Total Upcoming:</span>
+            <span className="text-lg font-bold text-indigo-600">{total}</span>
+          </div>
+        </div>
 
-        <div className="contests-grid">
-          {contests.map((c, index) => {
-            const getBadgeClass = (host) => {
-              const hostClasses = {
-                codeforces: 'badge-codeforces', codechef: 'badge-codechef',
-                leetcode: 'badge-leetcode', atcoder: 'badge-atcoder',
-                geeksforgeeks: 'badge-geeksforgeeks', codingninjas: 'badge-codingninjas',
-              };
-              return hostClasses[host] || 'badge-default';
-            };
+        {error && (
+          <div className="flex flex-col items-center justify-center py-20 bg-slate-800/80 backdrop-blur-md rounded-xl shadow-sm border border-red-900/50">
+            <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+            <h3 className="text-xl font-semibold text-white">Connection Failed</h3>
+            <p className="text-slate-400 mt-2">Could not fetch contest data from the database.</p>
+          </div>
+        )}
 
-            return (
-              <div key={c.vanity} className="contest-card">
-                <div className="card-glow"></div>
-                <div className="card-header">
-                  <div className={`contest-host-badge ${getBadgeClass(c.host)}`}>
-                    {c.host.toUpperCase()}
+        {contests === null && !error && (
+          <div className="flex flex-col items-center justify-center py-20 bg-slate-800/80 backdrop-blur-md rounded-xl shadow-sm border border-slate-700">
+            <Loader2 className="w-12 h-12 text-indigo-500 animate-spin mb-4" />
+            <h3 className="text-xl font-semibold text-white">Loading Contests</h3>
+            <p className="text-slate-400 mt-2">Fetching the latest schedule...</p>
+          </div>
+        )}
+
+        {contests && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {contests.map((c) => (
+              <div 
+                key={c.vanity || c.id || c.name} 
+                className="bg-slate-800/80 backdrop-blur-md rounded-xl shadow-sm hover:shadow-xl hover:-translate-y-1 border border-slate-700 transition-all duration-300 flex flex-col overflow-hidden group"
+              >
+                <div className="p-6 flex-1">
+                  <div className="flex justify-between items-start mb-4">
+                    <span className={`px-3 py-1 text-xs font-semibold uppercase tracking-wider rounded-full border ${getBadgeColor(c.host)}`}>
+                      {c.host}
+                    </span>
                   </div>
-                  <div className="card-corner-decoration"></div>
-                </div>
 
-                <h2 className="contest-title-card">
-                  <a href={c.url} target="_blank" rel="noopener noreferrer">
-                    {c.name}
-                  </a>
-                </h2>
-
-                <div className="contest-details">
-                  <div className="detail-row">
-                    <span className="detail-icon">🔗</span>
-                    <a href={c.url} target="_blank" rel="noopener noreferrer" className="contest-link">
-                      {c.host.charAt(0).toUpperCase() + c.host.slice(1)} Platform
+                  <h2 className="text-xl font-bold text-white mb-4 line-clamp-2 group-hover:text-indigo-400 transition-colors">
+                    <a href={c.url} target="_blank" rel="noopener noreferrer">
+                      {c.name}
                     </a>
-                  </div>
+                  </h2>
 
-                  <div className="detail-row">
-                    <span className="detail-icon">⏰</span>
-                    <div className="detail-content">
-                      <span className="detail-label">START:</span>
-                      <span className="detail-value">
-                        {new Date(c.startTimeUnix * 1000).toLocaleString()}
-                      </span>
+                  <div className="space-y-3">
+                    <div className="flex items-center text-slate-300 text-sm">
+                      <Calendar className="w-4 h-4 mr-3 text-slate-400" />
+                      <span>{new Date(c.startTimeUnix * 1000).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
-                  </div>
-
-                  <div className="detail-row">
-                    <span className="detail-icon">⏱️</span>
-                    <div className="detail-content">
-                      <span className="detail-label">DURATION:</span>
-                      <span className="detail-value">{c.duration} min</span>
+                    <div className="flex items-center text-slate-300 text-sm">
+                      <Clock className="w-4 h-4 mr-3 text-slate-400" />
+                      <span>{c.duration} minutes</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="card-footer">
-                  <div className="binary-pattern">
-                    {generateBinaryPattern(c.name, index)}
-                  </div>
+                <div className="px-6 py-4 bg-slate-900/50 border-t border-slate-700 mt-auto">
+                  <a 
+                    href={c.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="flex items-center justify-center w-full text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+                  >
+                    View Contest
+                    <ExternalLink className="w-4 h-4 ml-2" />
+                  </a>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </div>
+            ))}
+          </div>
+        )}
+      </main>
     </div>
   );
 }

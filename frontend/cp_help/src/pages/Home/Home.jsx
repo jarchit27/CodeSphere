@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import './Home.css';
 import Navbar from '../../components/Navbar/Navbar';
 import FriendCard from '../../components/Cards/FriendCard';
 import { MdAdd } from 'react-icons/md';
 import AddEditFriend from './AddEditFriend';
 import Modal from 'react-modal';
 import { useNavigate } from 'react-router-dom';
-import axiosInstance from '../../utils/axiosInstance';
-
+import { friendService } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 const Home = () => {
   const [allFriends, setAllFriends] = useState([]);
   const [isSearch, setIsSearch] = useState(false);
@@ -17,13 +16,13 @@ const Home = () => {
     data: null,
   });
 
-  const [userInfo, setUserInfo] = useState(null);
   const [userInfoMap, setUserInfoMap] = useState({});
   const [solvedCountMap, setSolvedCountMap] = useState({});
   const [contestsCountMap, setContestsCountMap] = useState({});
   const [loadingUserInfo, setLoadingUserInfo] = useState(true);
 
   const navigate = useNavigate();
+  const { user: userInfo } = useAuth();
 
   const handleEdit = (friendDetails) => {
     setOpenAddEditModal({ isShown: true, data: friendDetails, type: 'edit' });
@@ -32,7 +31,7 @@ const Home = () => {
   const handleDelete = async (friendDetails) => {
     const friendId = friendDetails._id;
     try {
-      const response = await axiosInstance.delete(`/delete-friend/${friendId}`);
+      const response = await friendService.delete(friendId);
       if (response.data && !response.data.error) {
         getAllFriends();
       }
@@ -41,21 +40,9 @@ const Home = () => {
     }
   };
 
-  const getUserInfo = async () => {
-    try {
-      const { data } = await axiosInstance.get('/get-user');
-      if (data.user) setUserInfo(data.user);
-    } catch (e) {
-      if (e.response?.status === 401) {
-        localStorage.clear();
-        navigate('/login');
-      }
-    }
-  };
-
   const getAllFriends = async () => {
     try {
-      const response = await axiosInstance.get("/get-all-friends");
+      const response = await friendService.getAll();
       if (response.data?.friends) {
         setAllFriends(response.data.friends);
         fetchBatchUserData(response.data.friends);
@@ -67,9 +54,7 @@ const Home = () => {
 
   const onSearchFriend = async (query) => {
     try {
-      const response = await axiosInstance.get("/search-friend/", {
-        params: { query },
-      });
+      const response = await friendService.search(query);
       if (response.data?.friends) {
         setIsSearch(true);
         setAllFriends(response.data.friends);
@@ -87,18 +72,18 @@ const Home = () => {
     const handles = friends.map(f => f.handle).join(';');
     
     try {
-      // Batch fetch user info
+      // Batch fetch user info (single request for all users)
       const userInfoPromise = fetch(`https://codeforces.com/api/user.info?handles=${handles}`)
         .then(res => res.json());
 
-      // Batch fetch ratings (for contest count)
+      // Fire all rating requests concurrently
       const ratingPromises = friends.map(friend => 
         fetch(`https://codeforces.com/api/user.rating?handle=${friend.handle}`)
           .then(res => res.json())
           .catch(() => ({ status: 'FAILED', result: [] }))
       );
 
-      // Batch fetch submissions (for solved count)
+      // Fire all submission requests concurrently
       const submissionPromises = friends.map(friend => 
         fetch(`https://codeforces.com/api/user.status?handle=${friend.handle}`)
           .then(res => res.json())
@@ -121,19 +106,15 @@ const Home = () => {
         setUserInfoMap(infoMap);
       }
 
-      // Process ratings (contest count)
+      // Process ratings
       const contestsMap = {};
       ratingResults.forEach((ratingData, index) => {
         const handle = friends[index].handle;
-        if (ratingData.status === 'OK') {
-          contestsMap[handle] = ratingData.result.length;
-        } else {
-          contestsMap[handle] = 0;
-        }
+        contestsMap[handle] = ratingData.status === 'OK' ? ratingData.result.length : 0;
       });
       setContestsCountMap(contestsMap);
 
-      // Process submissions (solved count)
+      // Process submissions
       const solvedMap = {};
       submissionResults.forEach((submissionData, index) => {
         const handle = friends[index].handle;
@@ -141,8 +122,7 @@ const Home = () => {
           const solved = new Set();
           submissionData.result.forEach((submission) => {
             if (submission.verdict === 'OK') {
-              const key = `${submission.problem.contestId}-${submission.problem.index}`;
-              solved.add(key);
+              solved.add(`${submission.problem.contestId}-${submission.problem.index}`);
             }
           });
           solvedMap[handle] = solved.size;
@@ -165,26 +145,12 @@ const Home = () => {
   };
 
   useEffect(() => {
-    getUserInfo();
     getAllFriends();
   }, []);
 
   return (
     <>
-      <div className="home-page">
-        {/* Cosmic Background Elements */}
-        <div className="background-elements">
-          <div className="stars"></div>
-          <div className="nebula-purple"></div>
-          <div className="nebula-blue"></div>
-          <div className="nebula-cyan"></div>
-          <div className="cosmic-dust"></div>
-          <div className="shooting-star"></div>
-          <div className="shooting-star"></div>
-          <div className="shooting-star"></div>
-          <div className="planet planet-1"></div>
-          <div className="planet planet-2"></div>
-        </div>
+      <div>
 
         <Navbar
           userInfo={userInfo}
@@ -245,7 +211,7 @@ const Home = () => {
                   loading={loadingUserInfo}
                   onEdit={() => handleEdit(f)}
                   onDelete={() => handleDelete(f)}
-                  onViewAnalysis={() => navigate(`/viewanalysis/${f.handle}`)}
+                  onViewAnalysis={() => navigate(`/profile/${f.handle}`)}
                   className="enhanced-card"
                 />
               ))}
@@ -266,42 +232,7 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Enhanced Space-themed Modal */}
-      <Modal
-        isOpen={openAddEditModal.isShown}
-        onRequestClose={() =>
-          setOpenAddEditModal({ isShown: false, type: 'add', data: null })
-        }
-        style={{
-          overlay: {
-            backgroundColor: 'rgba(0, 0, 0, 0.85)',
-            backdropFilter: 'blur(15px)',
-            zIndex: 1000,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          },
-          content: {
-            position: 'relative',
-            top: 'auto',
-            left: 'auto',
-            right: 'auto',
-            bottom: 'auto',
-            transform: 'none',
-            background: 'rgba(255, 255, 255, 0.05)',
-            backdropFilter: 'blur(25px)',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
-            borderRadius: '24px',
-            padding: '2rem',
-            maxWidth: '600px',
-            width: '90%',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 40px rgba(0, 191, 255, 0.15)',
-          }
-        }}
-        ariaHideApp={false}
-      >
+      {openAddEditModal.isShown && (
         <AddEditFriend
           type={openAddEditModal.type}
           friendData={openAddEditModal.data}
@@ -310,7 +241,7 @@ const Home = () => {
           }
           getAllFriends={getAllFriends}
         />
-      </Modal>
+      )}
     </>
   );
 };

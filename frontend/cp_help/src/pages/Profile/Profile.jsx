@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import ViewAnalysis from "../ViewAnalysis/ViewAnalysis";
+import Navbar from "../../components/Navbar/Navbar";
+import { useAuth } from "../../context/AuthContext";
 
 const Profile = () => {
+  const { user: authUser } = useAuth();
   const { handle } = useParams();
   const [loading, setLoading] = useState(true);
-  const [userInfo, setUserInfo] = useState(null);
+  const [cfUserInfo, setCfUserInfo] = useState(null);
   const [ratingHistory, setRatingHistory] = useState([]);
   const [submissions, setSubmissions] = useState([]);
 
@@ -30,7 +33,7 @@ const Profile = () => {
           throw new Error("Failed to fetch some data");
         }
 
-        setUserInfo(userInfoJson.result[0]);
+        setCfUserInfo(userInfoJson.result[0]);
         setRatingHistory(ratingJson.result);
         setSubmissions(submissionsJson.result);
         setLoading(false);
@@ -45,24 +48,31 @@ const Profile = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen px-4 text-lg text-gray-600 animate-pulse">
-        Loading profile for <span className="font-semibold">@{handle}</span>...
-      </div>
+      <>
+        <Navbar userInfo={authUser} showSearchBar={false} />
+        <div className="flex items-center justify-center min-h-screen px-4 text-lg text-gray-600 animate-pulse">
+          Loading profile for <span className="font-semibold">@{handle}</span>...
+        </div>
+      </>
     );
   }
 
-  if (!userInfo) {
+  if (!cfUserInfo) {
     return (
-      <div className="flex items-center justify-center min-h-screen px-4 text-red-600 text-center">
-        Error: No user data found for <span className="font-semibold">@{handle}</span>
-      </div>
+      <>
+        <Navbar userInfo={authUser} showSearchBar={false} />
+        <div className="flex items-center justify-center min-h-screen px-4 text-red-600 text-center">
+          Error: No user data found for <span className="font-semibold">@{handle}</span>
+        </div>
+      </>
     );
   }
 
   return (
     <>
+      <Navbar userInfo={authUser} showSearchBar={false} />
       <ViewAnalysis
-        userInfo={userInfo}
+        profileData={cfUserInfo}
         ratingHistory={ratingHistory}
         submissions={submissions}
       />
