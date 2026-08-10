@@ -45,6 +45,12 @@ const FriendCard = ({
   const [loadingStats, setLoadingStats] = useState(true);
   const cardRef = useRef(null);
 
+  // Reset stats if the handle changes (e.g. when editing a friend)
+  useEffect(() => {
+    setStats({ solvedCount: undefined, contestsCount: undefined });
+    setLoadingStats(true);
+  }, [handle]);
+
   useEffect(() => {
     // Only fetch if stats are undefined
     if (stats.solvedCount !== undefined) return;
@@ -69,50 +75,11 @@ const FriendCard = ({
     }
 
     return () => observer.disconnect();
-  }, [handle, stats.solvedCount, loading]);
+  }, [handle, stats.solvedCount, loading, userData]);
 
-  // Handle case where userData might not exist yet
-  if (loading || !userData) {
-    return (
-      <div className="space-card rounded-xl p-5 my-3 shadow-lg">
-        <div className="flex items-center space-x-3">
-          <div className="space-y-2">
-            <div className="h-4 w-32 bg-white/20 rounded animate-pulse"></div>
-            <div className="h-3 w-24 bg-white/20 rounded animate-pulse"></div>
-          </div>
-        </div>
-        <div className="mt-4 space-y-3">
-          <div className="h-3 w-3/4 bg-white/20 rounded animate-pulse"></div>
-          <div className="h-3 w-1/2 bg-white/20 rounded animate-pulse"></div>
-        </div>
-        <div className="mt-3 text-sm text-gray-300 text-center">
-          <span>Loading Codeforces data for @{handle}...</span>
-        </div>
-      </div>
-    );
-  }
-
-  // Safety check for userData
-  if (!userData || typeof userData !== 'object') {
-    return (
-      <div className="space-card rounded-xl p-4 my-3 shadow-lg">
-        <div className="flex items-center text-red-400">
-          <div className="flex-shrink-0">
-            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div className="ml-3">
-            <p className="text-sm font-medium">Error for @{handle}: Failed to load data</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const ratingColor = getColorByRating(userData.rating);
-  const maxRatingColor = getColorByRating(userData.maxRating);
-  const cardBackground = getCardBackground(userData.rating);
+  const ratingColor = getColorByRating(userData?.rating || 0);
+  const maxRatingColor = getColorByRating(userData?.maxRating || 0);
+  const cardBackground = getCardBackground(userData?.rating || 0);
 
   return (
     <div 
@@ -132,7 +99,7 @@ const FriendCard = ({
             </div>
           </div>
           <div className={`text-2xl font-bold ${ratingColor}`}>
-            {userData.rating || 0}
+            {!userData ? <span className="animate-pulse">...</span> : (userData.rating || 0)}
           </div>
         </div>
       </div>
@@ -144,13 +111,13 @@ const FriendCard = ({
           <div className="metallic-stat rounded-lg p-3 text-center">
             <p className="text-xs text-gray-300 uppercase font-semibold mb-1">Rank</p>
             <p className={`font-bold text-sm ${ratingColor}`}>
-              {userData.rank || "Unrated"}
+              {!userData ? <span className="animate-pulse">...</span> : (userData.rank || "Unrated")}
             </p>
           </div>
           <div className="metallic-stat rounded-lg p-3 text-center">
             <p className="text-xs text-gray-300 uppercase font-semibold mb-1">Max Rating</p>
             <p className={`font-bold text-sm ${maxRatingColor}`}>
-              {userData.maxRating || "Unrated"}
+              {!userData ? <span className="animate-pulse">...</span> : (userData.maxRating || "Unrated")}
             </p>
           </div>
         </div>
@@ -159,8 +126,8 @@ const FriendCard = ({
         <div className="grid grid-cols-3 gap-2">
           <div className="metallic-stat rounded-lg p-2 text-center">
             <p className="text-xs text-gray-300 uppercase font-semibold">Contrib</p>
-            <p className={`font-bold text-sm ${(userData.contribution || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {userData.contribution || 0}
+            <p className={`font-bold text-sm ${!userData ? 'text-gray-400' : (userData.contribution || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              {!userData ? <span className="animate-pulse">...</span> : (userData.contribution || 0)}
             </p>
           </div>
           <div className="metallic-stat rounded-lg p-2 text-center">
@@ -181,7 +148,7 @@ const FriendCard = ({
 
         {/* Info */}
         <div className="space-y-1 text-sm">
-          {(userData.country || userData.city) && (
+          {userData && (userData.country || userData.city) && (
             <div className="flex items-center text-gray-300">
               <MdLocationOn className="mr-1 text-gray-400" />
               <p className="truncate">
@@ -191,13 +158,13 @@ const FriendCard = ({
             </div>
           )}
           
-          {userData.organization && (
+          {userData && userData.organization && (
             <p className="text-gray-300 truncate text-sm">
               <span className="font-medium">Org:</span> {userData.organization}
             </p>
           )}
           
-          {userData.friendOfCount && (
+          {userData && userData.friendOfCount && (
             <p className="text-gray-300 text-sm">
               <span className="font-medium">Friends:</span> {userData.friendOfCount}
             </p>

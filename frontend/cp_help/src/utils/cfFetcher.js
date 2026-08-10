@@ -81,8 +81,8 @@ class CodeforcesFetcher {
         console.log(`[cfFetcher] Raw Status API for ${handle}: (Total Submissions: ${statusRes.data.result.length})`);
         const solved = new Set();
         statusRes.data.result.forEach(submission => {
-          if (submission.verdict === 'OK' && submission.problem) {
-            solved.add(`${submission.problem.contestId}-${submission.problem.index}`);
+          if (submission.verdict === 'OK' && submission.problem && submission.problem.name) {
+            solved.add(submission.problem.name);
           }
         });
         solvedCount = solved.size;

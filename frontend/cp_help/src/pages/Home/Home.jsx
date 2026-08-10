@@ -17,7 +17,7 @@ const Home = () => {
   });
 
   const [userInfoMap, setUserInfoMap] = useState({});
-  const [loadingUserInfo, setLoadingUserInfo] = useState(true);
+  // loadingUserInfo state removed to prevent global flicker
 
   const navigate = useNavigate();
   const { user: userInfo } = useAuth();
@@ -28,13 +28,21 @@ const Home = () => {
 
   const handleDelete = async (friendDetails) => {
     const friendId = friendDetails._id;
+    
+    // Optimistic UI update: instantly remove the friend from the screen
+    // This prevents the whole page from "reloading" (showing skeletons)
+    setAllFriends(prev => prev.filter(f => f._id !== friendId));
+
     try {
       const response = await friendService.delete(friendId);
-      if (response.data && !response.data.error) {
+      if (response.data && response.data.error) {
+        // If deletion failed on the backend, revert the UI
         getAllFriends();
       }
     } catch (error) {
       console.error('Unexpected error during deletion:', error);
+      // Revert the UI on error
+      getAllFriends();
     }
   };
 
@@ -65,28 +73,37 @@ const Home = () => {
 
   const fetchBatchUserData = async (friends) => {
     if (!friends || friends.length === 0) {
-      setLoadingUserInfo(false);
       return;
     }
     
-    setLoadingUserInfo(true);
-    const handles = friends.map(f => f.handle).join(';');
+    // Find handles that are NOT already in our in-memory cache (userInfoMap)
+    // We normalize to lowercase and trim to prevent casing/spacing mismatches
+    const missingHandles = friends
+      .map(f => f.handle.trim().toLowerCase())
+      .filter(handle => !userInfoMap[handle]);
+
+    // If we already have data for everyone, don't hit the API again!
+    if (missingHandles.length === 0) {
+      return;
+    }
+    
+    const handlesToFetch = missingHandles.join(';');
     
     try {
-      const userInfoResponse = await fetch(`https://codeforces.com/api/user.info?handles=${handles}`);
+      const userInfoResponse = await fetch(`https://codeforces.com/api/user.info?handles=${handlesToFetch}`);
       const userInfoData = await userInfoResponse.json();
 
       if (userInfoData.status === 'OK') {
-        const infoMap = {};
+        // Merge the newly fetched data with the existing cached data
+        const infoMap = { ...userInfoMap };
         userInfoData.result.forEach(user => {
-          infoMap[user.handle] = user;
+          // Save in the map using lowercase to ensure we can always find it
+          infoMap[user.handle.toLowerCase()] = user;
         });
         setUserInfoMap(infoMap);
       }
     } catch (error) {
       console.error('Error during batch fetch:', error);
-    } finally {
-      setLoadingUserInfo(false);
     }
   };
 
@@ -156,8 +173,9 @@ const Home = () => {
                   handle={f.handle}
                   date={f.createdOn}
                   name={f.name}
-                  userData={userInfoMap[f.handle]}
-                  loading={loadingUserInfo}
+                  // Lookup using the normalized handle
+                  userData={userInfoMap[f.handle.trim().toLowerCase()]}
+                  loading={false} // Global loading disabled, falls back to userData check
                   onEdit={() => handleEdit(f)}
                   onDelete={() => handleDelete(f)}
                   onViewAnalysis={() => navigate(`/profile/${f.handle}`)}
