@@ -42,10 +42,14 @@ sequenceDiagram
     React UI->>Node Backend: GET /get-all-friends
     Node Backend->>MongoDB: Fetch friends list
     MongoDB-->>Node Backend: Return friends
-    Node Backend-->>React UI: Returns basic friend data
+    Node Backend-->>React UI: Returns handles & names
+    
+    Note over React UI, Codeforces API: Initial Batch Fetch
+    React UI->>Codeforces API: Batch GET user.info (for ranks/ratings)
+    Codeforces API-->>React UI: Returns user details
     
     rect rgb(20, 20, 30)
-    Note over React UI, Codeforces API: Visual Lazy Loading Phase
+    Note over React UI, Codeforces API: Visual Lazy Loading Phase (Heavy Stats)
     React UI->>cfFetcher (Queue): User scrolls to friend card
     cfFetcher (Queue)->>cfFetcher (Queue): Check localStorage cache
     cfFetcher (Queue)->>Codeforces API: Direct API calls (user.rating, user.status)
