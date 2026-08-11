@@ -11,16 +11,38 @@ const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const axios = require("axios");
-const app= express();
+const app = express();
 const jwt = require('jsonwebtoken');
 const {authenticateToken} = require("./utilities");
+const rateLimit = require("express-rate-limit");
+
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // limit each IP to 10 requests per windowMs
+    message: { error: true, message: "Too many requests from this IP, please try again after 15 minutes" },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 app.use(express.json());
 
 app.use(
     cors({origin: "*",})
 );
 
-app.post("/create-account", async(req, res) =>{
+const apiV1 = express.Router();
+
+// General rate limiter for all API endpoints (100 requests per 15 minutes)
+const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: { error: true, message: "Too many requests, please try again later" },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+apiV1.use(generalLimiter);
+
+apiV1.post("/create-account", authLimiter, async(req, res) =>{
     if (!req.body) {
         return res.status(400).json({ error: true, message: "Invalid request body" });
     }
@@ -67,7 +89,7 @@ app.post("/create-account", async(req, res) =>{
     })
 });
 
-app.post("/login" , async(req, res)=>{
+apiV1.post("/login" , authLimiter, async(req, res)=>{
     if (!req.body) {
         return res.status(400).json({ error: true, message: "Invalid request body" });
     }
@@ -99,7 +121,7 @@ app.post("/login" , async(req, res)=>{
     }
 });
 
-app.get("/get-user" ,authenticateToken, async(req, res)=>{
+apiV1.get("/get-user" ,authenticateToken, async(req, res)=>{
     const {user} = req.user;
     const isUser = await User.findOne({_id: user._id});
     if(!isUser){
@@ -108,7 +130,7 @@ app.get("/get-user" ,authenticateToken, async(req, res)=>{
     return res.status(200).json({user:{ fullname: isUser.fullname, codeforcesHandle: isUser.codeforcesHandle ,email: isUser.email, "_id" : isUser._id}, message:""});
 });
 
-app.post("/add-friend" , authenticateToken ,async(req, res)=>{
+apiV1.post("/add-friend" , authenticateToken ,async(req, res)=>{
 
     const {handle, name} = req.body;
     const { user } = req.user;
@@ -146,7 +168,7 @@ app.post("/add-friend" , authenticateToken ,async(req, res)=>{
     }
 });
 
-app.put("/edit-friend/:friendId" , authenticateToken ,async(req, res)=>{
+apiV1.put("/edit-friend/:friendId" , authenticateToken ,async(req, res)=>{
 
     const friendId = req.params.friendId;
     const {handle, name} = req.body;
@@ -180,7 +202,7 @@ app.put("/edit-friend/:friendId" , authenticateToken ,async(req, res)=>{
     }
 });
 
-app.delete("/delete-friend/:friendId" , authenticateToken ,async(req, res)=>{
+apiV1.delete("/delete-friend/:friendId" , authenticateToken ,async(req, res)=>{
     const friendId = req.params.friendId;
     const {user} = req.user;
     try{
@@ -203,7 +225,7 @@ app.delete("/delete-friend/:friendId" , authenticateToken ,async(req, res)=>{
     }
 });
 
-app.get("/get-all-friends/" , authenticateToken ,async(req, res)=>{
+apiV1.get("/get-all-friends/" , authenticateToken ,async(req, res)=>{
     const {user} = req.user;
     
     // Pagination parameters (default page 1, limit 12)
@@ -234,7 +256,7 @@ app.get("/get-all-friends/" , authenticateToken ,async(req, res)=>{
     }
 });
 
-app.post("/add-problem" , authenticateToken ,async(req, res)=>{
+apiV1.post("/add-problem" , authenticateToken ,async(req, res)=>{
 
     const {questionName,platform,difficulty,questionLink,notes ,tags} = req.body;
     const { user } = req.user;
@@ -284,7 +306,7 @@ app.post("/add-problem" , authenticateToken ,async(req, res)=>{
     }
 });
 
-app.delete("/delete-problem/:problemId" , authenticateToken ,async(req, res)=>{
+apiV1.delete("/delete-problem/:problemId" , authenticateToken ,async(req, res)=>{
     const problemId = req.params.problemId;
     const {user} = req.user;
     try{
@@ -307,7 +329,7 @@ app.delete("/delete-problem/:problemId" , authenticateToken ,async(req, res)=>{
     }
 });
 
-app.get("/get-all-problems/" , authenticateToken ,async(req, res)=>{
+apiV1.get("/get-all-problems/" , authenticateToken ,async(req, res)=>{
     const {user} = req.user;
     
     // Pagination parameters (default page 1, limit 12)
@@ -339,7 +361,7 @@ app.get("/get-all-problems/" , authenticateToken ,async(req, res)=>{
     }
 });
 
-app.get("/search-friend/", authenticateToken, async(req,res)=>{
+apiV1.get("/search-friend/", authenticateToken, async(req,res)=>{
     const {user} = req.user;
     const {query} = req.query;
     if(!query){
@@ -368,6 +390,8 @@ app.get("/search-friend/", authenticateToken, async(req,res)=>{
         });
     }
 });
+
+app.use("/api/v1", apiV1);
 
 app.listen(process.env.PORT, () => {
     console.log(`Server is running on port ${process.env.PORT}`);
