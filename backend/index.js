@@ -1,6 +1,20 @@
 require("dotenv").config();
-const mongoose = require("mongoose");
 
+// 1. Environment Variable Validation
+const requiredEnv = ["MONGO_URI", "PORT", "ACCESS_TOKEN_SECRET"];
+for (const envVar of requiredEnv) {
+    if (!process.env[envVar]) {
+        console.error(`FATAL ERROR: Missing environment variable: ${envVar}`);
+        process.exit(1);
+    }
+}
+
+// 2. Async Error Wrapper
+const catchAsync = (fn) => (req, res, next) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+};
+
+const mongoose = require("mongoose");
 mongoose.connect(process.env.MONGO_URI);
 
 const User = require("./models/user.model");
@@ -42,7 +56,7 @@ const generalLimiter = rateLimit({
 });
 apiV1.use(generalLimiter);
 
-apiV1.post("/create-account", authLimiter, async(req, res) =>{
+apiV1.post("/create-account", authLimiter, catchAsync(async(req, res) =>{
     if (!req.body) {
         return res.status(400).json({ error: true, message: "Invalid request body" });
     }
@@ -87,9 +101,9 @@ apiV1.post("/create-account", authLimiter, async(req, res) =>{
         accessToken,
         message: "Regisatration Successful",
     })
-});
+}));
 
-apiV1.post("/login" , authLimiter, async(req, res)=>{
+apiV1.post("/login" , authLimiter, catchAsync(async(req, res)=>{
     if (!req.body) {
         return res.status(400).json({ error: true, message: "Invalid request body" });
     }
@@ -119,18 +133,18 @@ apiV1.post("/login" , authLimiter, async(req, res)=>{
     {
         return res.status(400).json({error:true, message:"Wrong Credentials"});
     }
-});
+}));
 
-apiV1.get("/get-user" ,authenticateToken, async(req, res)=>{
+apiV1.get("/get-user" ,authenticateToken, catchAsync(async(req, res)=>{
     const {user} = req.user;
     const isUser = await User.findOne({_id: user._id});
     if(!isUser){
         return res.status(401).json({ error: true, message: "User not found" });
     }
     return res.status(200).json({user:{ fullname: isUser.fullname, codeforcesHandle: isUser.codeforcesHandle ,email: isUser.email, "_id" : isUser._id}, message:""});
-});
+}));
 
-apiV1.post("/add-friend" , authenticateToken ,async(req, res)=>{
+apiV1.post("/add-friend" , authenticateToken , catchAsync(async(req, res)=>{
 
     const {handle, name} = req.body;
     const { user } = req.user;
@@ -142,33 +156,25 @@ apiV1.post("/add-friend" , authenticateToken ,async(req, res)=>{
         return res.status(400).json({error:true , message: "Friend is required"})
     }
 
-    try{
-        const existingFriend = await Friend.findOne({ handle, userId: user._id });
-        if (existingFriend) {
-            return res.status(400).json({ error: true, message: "Friend already added" });
-        }
-
-        const friend = new Friend({
-            handle, 
-            name, 
-            userId: user._id,
-        });
-        await friend.save();
-        return res.json({
-            error: false,
-            friend,
-            message:"Friend added successfully",
-        })
+    const existingFriend = await Friend.findOne({ handle, userId: user._id });
+    if (existingFriend) {
+        return res.status(400).json({ error: true, message: "Friend already added" });
     }
-    catch(error){
-        return res.status(500).json({
-            error:true,
-            message: "Internal Server Error",
-        });
-    }
-});
 
-apiV1.put("/edit-friend/:friendId" , authenticateToken ,async(req, res)=>{
+    const friend = new Friend({
+        handle, 
+        name, 
+        userId: user._id,
+    });
+    await friend.save();
+    return res.json({
+        error: false,
+        friend,
+        message:"Friend added successfully",
+    })
+}));
+
+apiV1.put("/edit-friend/:friendId" , authenticateToken , catchAsync(async(req, res)=>{
 
     const friendId = req.params.friendId;
     const {handle, name} = req.body;
@@ -178,54 +184,39 @@ apiV1.put("/edit-friend/:friendId" , authenticateToken ,async(req, res)=>{
         return res.status(401).json({error:true, message:"Error not found Friend"})
 
     
-    try{
-        const friend = await Friend.findOne({_id:friendId, userId: user._id})
+    const friend = await Friend.findOne({_id:friendId, userId: user._id})
 
-        if(!friend)
-            return res.status(404).json({error:true, message:"Friend not found"})
+    if(!friend)
+        return res.status(404).json({error:true, message:"Friend not found"})
 
-        if(handle) friend.handle = handle;
-        if(name) friend.name = name;
+    if(handle) friend.handle = handle;
+    if(name) friend.name = name;
 
-        await friend.save();
-        return res.json({
-            error: false,
-            friend,
-            message:"friend added successfully",
-        })
-    }
-    catch(error){
-        return res.status(500).json({
-            error:true,
-            message: "Internal Server Error",
-        });
-    }
-});
+    await friend.save();
+    return res.json({
+        error: false,
+        friend,
+        message:"friend added successfully",
+    })
+}));
 
-apiV1.delete("/delete-friend/:friendId" , authenticateToken ,async(req, res)=>{
+apiV1.delete("/delete-friend/:friendId" , authenticateToken , catchAsync(async(req, res)=>{
     const friendId = req.params.friendId;
     const {user} = req.user;
-    try{
-        const friend = await Friend.findOne({_id:friendId, userId: user._id});
 
-        if(!friend)
-            return res.status(404).json({error:true, message:"Friend not found"})
+    const friend = await Friend.findOne({_id:friendId, userId: user._id});
 
-        await Friend.deleteOne({_id: friendId, userId: user._id});
-        return res.json({
-            error: false,
-            message:"Friend deleted successfully"
-        })
-    }
-    catch(error){
-        return res.status(500).json({
-            error:true,
-            message: "Internal Server Error"
-        });
-    }
-});
+    if(!friend)
+        return res.status(404).json({error:true, message:"Friend not found"})
 
-apiV1.get("/get-all-friends/" , authenticateToken ,async(req, res)=>{
+    await Friend.deleteOne({_id: friendId, userId: user._id});
+    return res.json({
+        error: false,
+        message:"Friend deleted successfully"
+    })
+}));
+
+apiV1.get("/get-all-friends/" , authenticateToken , catchAsync(async(req, res)=>{
     const {user} = req.user;
     
     // Pagination parameters (default page 1, limit 12)
@@ -233,30 +224,22 @@ apiV1.get("/get-all-friends/" , authenticateToken ,async(req, res)=>{
     const limit = parseInt(req.query.limit) || 12;
     const skip = (page - 1) * limit;
 
-    try{
-        const totalFriends = await Friend.countDocuments({userId: user._id});
-        const totalPages = Math.ceil(totalFriends / limit);
-        
-        const friends = await Friend.find({userId: user._id}).skip(skip).limit(limit);
-        
-        return res.json({
-            error: false,
-            friends,
-            currentPage: page,
-            totalPages: totalPages === 0 ? 1 : totalPages,
-            totalFriends,
-            message:"All friends successfully",
-        });
-    }
-    catch(error){
-        return res.status(500).json({
-            error:true,
-            message: "Internal Server Error",
-        });
-    }
-});
+    const totalFriends = await Friend.countDocuments({userId: user._id});
+    const totalPages = Math.ceil(totalFriends / limit);
+    
+    const friends = await Friend.find({userId: user._id}).skip(skip).limit(limit);
+    
+    return res.json({
+        error: false,
+        friends,
+        currentPage: page,
+        totalPages: totalPages === 0 ? 1 : totalPages,
+        totalFriends,
+        message:"All friends successfully",
+    });
+}));
 
-apiV1.post("/add-problem" , authenticateToken ,async(req, res)=>{
+apiV1.post("/add-problem" , authenticateToken , catchAsync(async(req, res)=>{
 
     const {questionName,platform,difficulty,questionLink,notes ,tags} = req.body;
     const { user } = req.user;
@@ -280,56 +263,41 @@ apiV1.post("/add-problem" , authenticateToken ,async(req, res)=>{
         return res.status(400).json({error:true , message: "Note is required"})
     }
 
-    try{
-        const existingProblem = await Problem.findOne({ questionLink, userId: user._id });
-        if (existingProblem) {
-            return res.status(400).json({ error: true, message: "Problem already added" });
-        }
-
-        const problem = new Problem({
-            questionName,platform,difficulty,questionLink,notes ,
-            tags: tags || [],
-            userId: user._id,
-        });
-        await problem.save();
-        return res.json({
-            error: false,
-            problem,
-            message:"Problem added successfully",
-        })
+    const existingProblem = await Problem.findOne({ questionLink, userId: user._id });
+    if (existingProblem) {
+        return res.status(400).json({ error: true, message: "Problem already added" });
     }
-    catch(error){
-        return res.status(500).json({
-            error:true,
-            message: "Internal Server Error",
-        });
-    }
-});
 
-apiV1.delete("/delete-problem/:problemId" , authenticateToken ,async(req, res)=>{
+    const problem = new Problem({
+        questionName,platform,difficulty,questionLink,notes ,
+        tags: tags || [],
+        userId: user._id,
+    });
+    await problem.save();
+    return res.json({
+        error: false,
+        problem,
+        message:"Problem added successfully",
+    })
+}));
+
+apiV1.delete("/delete-problem/:problemId" , authenticateToken , catchAsync(async(req, res)=>{
     const problemId = req.params.problemId;
     const {user} = req.user;
-    try{
-        const problem = await Problem.findOne({_id:problemId, userId: user._id});
 
-        if(!problem)
-            return res.status(404).json({error:true, message:"Problem not found"})
+    const problem = await Problem.findOne({_id:problemId, userId: user._id});
 
-        await Problem.deleteOne({_id: problemId, userId: user._id});
-        return res.json({
-            error: false,
-            message:"Problem deleted successfully"
-        })
-    }
-    catch(error){
-        return res.status(500).json({
-            error:true,
-            message: "Internal Server Error"
-        });
-    }
-});
+    if(!problem)
+        return res.status(404).json({error:true, message:"Problem not found"})
 
-apiV1.get("/get-all-problems/" , authenticateToken ,async(req, res)=>{
+    await Problem.deleteOne({_id: problemId, userId: user._id});
+    return res.json({
+        error: false,
+        message:"Problem deleted successfully"
+    })
+}));
+
+apiV1.get("/get-all-problems/" , authenticateToken , catchAsync(async(req, res)=>{
     const {user} = req.user;
     
     // Pagination parameters (default page 1, limit 12)
@@ -337,61 +305,53 @@ apiV1.get("/get-all-problems/" , authenticateToken ,async(req, res)=>{
     const limit = parseInt(req.query.limit) || 12;
     const skip = (page - 1) * limit;
 
-    try{
-        const totalProblems = await Problem.countDocuments({userId: user._id});
-        const totalPages = Math.ceil(totalProblems / limit);
-        
-        const problems = await Problem.find({userId: user._id}).skip(skip).limit(limit);
-        
-        return res.json({
-            error: false,
-            problems,
-            currentPage: page,
-            totalPages: totalPages === 0 ? 1 : totalPages,
-            totalProblems,
-            message:"All Problems successfully",
-        });
+    const totalProblems = await Problem.countDocuments({userId: user._id});
+    const totalPages = Math.ceil(totalProblems / limit);
+    
+    const problems = await Problem.find({userId: user._id}).skip(skip).limit(limit);
+    
+    return res.json({
+        error: false,
+        problems,
+        currentPage: page,
+        totalPages: totalPages === 0 ? 1 : totalPages,
+        totalProblems,
+        message:"All Problems successfully",
+    });
+}));
 
-    }
-    catch(error){
-        return res.status(500).json({
-            error:true,
-            message: "Internal Server Error",
-        });
-    }
-});
-
-apiV1.get("/search-friend/", authenticateToken, async(req,res)=>{
+apiV1.get("/search-friend/", authenticateToken, catchAsync(async(req,res)=>{
     const {user} = req.user;
     const {query} = req.query;
     if(!query){
         return res.status(400).json({error:true , message:"query is required"})
     } 
 
-    try {
-        const matchingFriends = await Friend.find({
-            userId: user._id,
-            $or:[
-                {handle : {$regex : new RegExp(query, "i")}},
-                {name :{$regex : new RegExp(query, "i")}},
-            ],
-        });
+    const matchingFriends = await Friend.find({
+        userId: user._id,
+        $or:[
+            {handle : {$regex : new RegExp(query, "i")}},
+            {name :{$regex : new RegExp(query, "i")}},
+        ],
+    });
 
-        return res.json({
-            error: false,
-            friends: matchingFriends ,
-            message:"Friends search query retrieved successfully",
-        });
-    }
-    catch(error){
-        return res.status(500).json({
-            error:true,
-            message: "Internal Server Error",
-        });
-    }
-});
+    return res.json({
+        error: false,
+        friends: matchingFriends ,
+        message:"Friends search query retrieved successfully",
+    });
+}));
 
 app.use("/api/v1", apiV1);
+
+// 3. Global Error Handling Middleware
+app.use((err, req, res, next) => {
+    console.error("🔥 Error caught by global handler:", err.stack);
+    res.status(err.status || 500).json({
+        error: true,
+        message: err.message || "Internal Server Error"
+    });
+});
 
 app.listen(process.env.PORT, () => {
     console.log(`Server is running on port ${process.env.PORT}`);
