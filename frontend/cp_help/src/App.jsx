@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import Home from './pages/Home/Home';
 import Login from './pages/Login/Login';
 import SignUp from './pages/SignUp/SignUp';
+import VerifyEmail from "./pages/VerifyEmail/VerifyEmail";
 import Profile from "./pages/Profile/Profile";
 import Problems from "./pages/Problems/Problems";
 import Compare from './pages/Compare/Compare';
@@ -37,6 +38,7 @@ const App = () => {
               <Route path='/' element={<Navigate to="/dashboard" replace />} />
               <Route path='/login' element={<Login />} />
               <Route path='/signup' element={<SignUp />} />
+              <Route path='/verify-email' element={<VerifyEmail />} />
               
               {/* Protected Routes */}
               <Route element={<ProtectedRoute />}>

@@ -23,6 +23,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.16.0",
     "mongoose": "^8.14.2",
+    "nodemailer": "^9.0.5",
     "nodemon": "^3.1.10",
     "react-chartjs-2": "^5.3.0"
   }

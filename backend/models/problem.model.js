@@ -44,4 +44,8 @@ const problemSchema = new Schema({
     default: Date.now,
   },
 });
+
+// Prevent race conditions where double-clicking "Add" creates duplicate problems
+problemSchema.index({ userId: 1, questionLink: 1 }, { unique: true });
+
 module.exports  = mongoose.model('Problem', problemSchema);

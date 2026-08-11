@@ -5,6 +5,8 @@ import axios from 'axios';
 export const authService = {
   login: (credentials) => axiosInstance.post('/login', credentials),
   register: (userData) => axiosInstance.post('/create-account', userData),
+  verifyEmail: (data) => axiosInstance.post('/verify-email', data),
+  resendOtp: (data) => axiosInstance.post('/resend-otp', data),
   getUser: () => axiosInstance.get('/get-user'),
 };
 

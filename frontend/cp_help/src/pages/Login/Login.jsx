@@ -11,7 +11,7 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [error, setError]       = useState(null);
   const navigate = useNavigate();
-  const { fetchUser, user, loading } = useAuth();
+  const { setUser, user, loading } = useAuth();
 
   // If user is already logged in, redirect them to dashboard immediately
   useEffect(() => {
@@ -35,11 +35,15 @@ const Login = () => {
       const { data } = await authService.login({ email, password });
       if (data.accessToken) {
         localStorage.setItem("token", data.accessToken);
-        await fetchUser(); // Update the global auth state
+        setUser(data.user); // Save roundtrip instead of fetchUser()
         navigate("/dashboard", { replace: true });
       }
-    } catch (err) {
-      setError(err.response?.data?.message || "An unexpected error occurred.");
+    } catch (error) {
+      if (error.response && error.response.data && error.response.data.message) {
+        setError(error.response.data.message);
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
     }
   };
 

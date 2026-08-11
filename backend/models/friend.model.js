@@ -22,4 +22,8 @@ const friendSchema = new Schema({
     default: Date.now,
   },
 });
+
+// Prevent race conditions where double-clicking "Add" creates duplicate friends
+friendSchema.index({ userId: 1, handle: 1 }, { unique: true });
+
 module.exports  = mongoose.model('Friend', friendSchema);

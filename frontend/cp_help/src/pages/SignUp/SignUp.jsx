@@ -12,6 +12,7 @@ const SignUp = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
   const { fetchUser, user, loading } = useAuth();
 
@@ -43,6 +44,7 @@ const SignUp = () => {
     setError("");
 
     try {
+      setSubmitting(true);
       const response = await authService.register({
         fullname: name,
         codeforcesHandle,
@@ -54,16 +56,18 @@ const SignUp = () => {
         setError(response.data.message);
         return;
       }
-      if (response.data?.accessToken) {
-        localStorage.setItem("token", response.data.accessToken);
-        await fetchUser(); // Update the global auth state
-        navigate("/dashboard", { replace: true });
-      }
+      // Save the current time so the VerifyEmail countdown knows when it started
+      localStorage.setItem("lastOtpTime", Date.now().toString());
+
+      // Always navigate to OTP page after successful signup
+      navigate(`/verify-email?email=${encodeURIComponent(response.data.email)}`, { replace: true });
     } catch (err) {
       setError(
         err.response?.data?.message ||
         "An unexpected error occurred."
       );
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -89,6 +93,7 @@ const SignUp = () => {
             <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 rounded-2xl blur-sm -z-10"></div>
             
             <div>
+              <form onSubmit={handleSignUp}>
               <h4 className="text-2xl font-semibold text-white text-center mb-6">Sign Up</h4>
 
               {/* Name Input */}
@@ -144,11 +149,11 @@ const SignUp = () => {
 
               {/* Sign Up Button */}
               <button 
-                type="button"
-                onClick={handleSignUp}
-                className="w-full py-3 mt-2 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-semibold rounded-lg shadow-lg transform transition-all duration-200 hover:scale-105 hover:shadow-cyan-500/25 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+                type="submit"
+                disabled={submitting}
+                className="w-full py-3 mt-2 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-semibold rounded-lg shadow-lg transform transition-all duration-200 hover:scale-105 hover:shadow-cyan-500/25 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
-                Create Account
+                {submitting ? "Creating Account..." : "Create Account"}
               </button>
 
               {/* Login Link */}
@@ -162,6 +167,7 @@ const SignUp = () => {
                 </Link>
 
               </p>
+              </form>
             </div>
           </div>
 

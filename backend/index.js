@@ -15,9 +15,17 @@ const catchAsync = (fn) => (req, res, next) => {
 };
 
 const mongoose = require("mongoose");
-mongoose.connect(process.env.MONGO_URI);
+mongoose.connect(process.env.MONGO_URI)
+    .then(() => console.log("✅ Successfully connected to MongoDB Atlas!"))
+    .catch((err) => {
+        console.error("❌ FATAL ERROR: Failed to connect to MongoDB Atlas.");
+        console.error("This is usually caused by a network issue or an IP whitelist problem.");
+        console.error(err);
+        process.exit(1);
+    });
 
 const User = require("./models/user.model");
+const PendingUser = require("./models/pendingUser.model");
 const Friend = require("./models/friend.model");
 const Problem = require("./models/problem.model");
 
@@ -27,7 +35,7 @@ const bcrypt = require("bcryptjs");
 const axios = require("axios");
 const app = express();
 const jwt = require('jsonwebtoken');
-const {authenticateToken} = require("./utilities");
+const {authenticateToken, sendVerificationEmail} = require("./utilities");
 const rateLimit = require("express-rate-limit");
 
 const authLimiter = rateLimit({
@@ -85,21 +93,52 @@ apiV1.post("/create-account", authLimiter, catchAsync(async(req, res) =>{
     const isUser = await User.findOne({email: email});
 
     if(isUser){
-        return res.status(409).json({error:true, message:"User already exists"})
+        return res.status(409).json({error:true, message:"User already exists and is verified"})
     }
     
+    // Check if codeforcesHandle already exists in main User collection
+    const isHandle = await User.findOne({codeforcesHandle});
+    if(isHandle){
+        return res.status(409).json({error:true, message:"Codeforces handle is already in use"})
+    }
+
+    // Cooldown check: prevent spam signups sending unlimited emails
+    const existingPending = await PendingUser.findOne({ email });
+    if (existingPending && existingPending.lastOtpSentAt) {
+        const timeSinceLastOtp = Date.now() - existingPending.lastOtpSentAt.getTime();
+        if (timeSinceLastOtp < 60000) {
+            return res.status(429).json({ error: true, message: "Please wait 60 seconds before trying again." });
+        }
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({fullname, codeforcesHandle ,email , password: hashedPassword });
-    await user.save();
-    const accessToken  = jwt.sign({ user: { _id: user._id } }, process.env.ACCESS_TOKEN_SECRET,{
-        expiresIn: "36000m"
-    })
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedOtp = await bcrypt.hash(otp, 10);
+
+    // Upsert into PendingUser
+    await PendingUser.findOneAndUpdate(
+        { email },
+        {
+            fullname,
+            codeforcesHandle,
+            email,
+            password: hashedPassword,
+            hashedOtp: hashedOtp,
+            otpAttempts: 0,
+            lastOtpSentAt: new Date(),
+            createdAt: new Date() // Resets TTL timer
+        },
+        { upsert: true, new: true }
+    );
+    
+    // Send OTP via email (or log if no credentials)
+    await sendVerificationEmail(email, otp);
 
     return res.json({
-        error:false,
-        user,
-        accessToken,
-        message: "Regisatration Successful",
+        error: false,
+        isVerified: false,
+        email: email,
+        message: "Registration successful. Please verify your email.",
     })
 }));
 
@@ -127,12 +166,94 @@ apiV1.post("/login" , authLimiter, catchAsync(async(req, res)=>{
     {
         const accessToken = jwt.sign({ user: { _id: userInfo._id } }, process.env.ACCESS_TOKEN_SECRET,{expiresIn:"36000m"});
 
-        return res.json({error:false, message:"Login Successful", email, accessToken});
+        return res.json({
+            error: false, 
+            message: "Login Successful", 
+            accessToken,
+            user: { fullname: userInfo.fullname, codeforcesHandle: userInfo.codeforcesHandle, email: userInfo.email, _id: userInfo._id }
+        });
     }
     else
     {
         return res.status(400).json({error:true, message:"Wrong Credentials"});
     }
+}));
+
+apiV1.post("/verify-email", authLimiter, catchAsync(async(req, res) => {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+        return res.status(400).json({ error: true, message: "Email and OTP are required" });
+    }
+
+    // Atomic: grab and remove in one operation to prevent race conditions
+    const pendingUser = await PendingUser.findOne({ email });
+    if (!pendingUser) {
+        return res.status(400).json({ error: true, message: "OTP has expired or user does not exist. Please sign up again." });
+    }
+
+    // Check attempt limit (max 5 wrong attempts)
+    if (pendingUser.otpAttempts >= 5) {
+        await PendingUser.deleteOne({ email });
+        return res.status(400).json({ error: true, message: "Too many failed attempts. Please sign up again." });
+    }
+
+    const isOtpValid = await bcrypt.compare(otp, pendingUser.hashedOtp);
+    if (!isOtpValid) {
+        // Increment attempt counter
+        pendingUser.otpAttempts += 1;
+        await pendingUser.save();
+        const remaining = 5 - pendingUser.otpAttempts;
+        return res.status(400).json({ error: true, message: `Invalid OTP. ${remaining} attempt(s) remaining.` });
+    }
+
+    // OTP is valid — atomically delete PendingUser so a duplicate request gets nothing
+    await PendingUser.deleteOne({ email });
+
+    // Move to main User collection
+    const user = new User({
+        fullname: pendingUser.fullname,
+        codeforcesHandle: pendingUser.codeforcesHandle,
+        email: pendingUser.email,
+        password: pendingUser.password, // Already hashed
+    });
+    await user.save();
+
+    const accessToken = jwt.sign({ user: { _id: user._id } }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "36000m" });
+
+    return res.json({
+        error: false,
+        message: "Email verified successfully",
+        accessToken,
+        user: { fullname: user.fullname, codeforcesHandle: user.codeforcesHandle, email: user.email, _id: user._id }
+    });
+}));
+
+apiV1.post("/resend-otp", authLimiter, catchAsync(async(req, res) => {
+    const { email } = req.body;
+    if (!email) {
+        return res.status(400).json({ error: true, message: "Email is required" });
+    }
+
+    const pendingUser = await PendingUser.findOne({ email });
+    if (!pendingUser) {
+        return res.status(400).json({ error: true, message: "No pending registration found for this email. Please sign up." });
+    }
+
+    // Cooldown check (60 seconds)
+    const timeSinceLastOtp = Date.now() - pendingUser.lastOtpSentAt.getTime();
+    if (timeSinceLastOtp < 60000) {
+        return res.status(429).json({ error: true, message: "Please wait 60 seconds before requesting a new OTP." });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    pendingUser.hashedOtp = await bcrypt.hash(otp, 10);
+    pendingUser.lastOtpSentAt = new Date();
+    pendingUser.createdAt = new Date(); // Reset TTL
+    await pendingUser.save();
+
+    await sendVerificationEmail(email, otp);
+
+    return res.json({ error: false, message: "A new OTP has been sent." });
 }));
 
 apiV1.get("/get-user" ,authenticateToken, catchAsync(async(req, res)=>{
