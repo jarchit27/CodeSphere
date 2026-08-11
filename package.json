@@ -1,0 +1,8 @@
+{
+  "name": "codesphere-root",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "npm install --prefix backend && npm install --prefix frontend/cp_help && npm run build --prefix frontend/cp_help",
+    "start": "npm start --prefix backend"
+  }
+}

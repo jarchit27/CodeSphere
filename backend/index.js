@@ -15,6 +15,7 @@ const catchAsync = (fn) => (req, res, next) => {
 };
 
 const mongoose = require("mongoose");
+const path = require("path");
 mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log("✅ Successfully connected to MongoDB Atlas!"))
     .catch((err) => {
@@ -566,6 +567,16 @@ app.use((err, req, res, next) => {
         message: err.message || "Internal Server Error"
     });
 });
+
+// --- DEPLOYMENT: Serve Frontend in Production ---
+if (process.env.NODE_ENV === "production") {
+    const staticPath = path.join(__dirname, "../frontend/cp_help/dist");
+    app.use(express.static(staticPath));
+    
+    app.get(/.*/, (req, res) => {
+        res.sendFile(path.join(staticPath, "index.html"));
+    });
+}
 
 app.listen(process.env.PORT, () => {
     console.log(`Server is running on port ${process.env.PORT}`);
