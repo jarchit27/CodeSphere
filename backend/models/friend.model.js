@@ -10,7 +10,7 @@ const friendSchema = new Schema({
     type: String,
     required: true,
   },
-  userId:{type:String, required: true},
+  userId:{type:String, required: true, index: true},
   rank: String,
   rating: Number,
   maxRank: String,

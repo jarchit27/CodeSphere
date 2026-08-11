@@ -38,7 +38,7 @@ const problemSchema = new Schema({
     type: [String],
     default: [],
   },
-  userId:{type:String, required: true},
+  userId:{type:String, required: true, index: true},
   fetchedAt: {
     type: Date,
     default: Date.now,
