@@ -42,12 +42,10 @@ class CodeforcesFetcher {
       // 1. Check Cache first
       const cached = this.getCachedStats(handle);
       if (cached) {
-        console.log(`[cfFetcher] ⚡ Cache HIT for ${handle}`);
         return resolve({ data: { stats: cached } });
       }
 
       // 2. If not cached, push to queue
-      console.log(`[cfFetcher] 🕒 Queued fetch for ${handle}`);
       this.queue.push({ handle, resolve, reject });
       this.processQueue();
     });
@@ -60,7 +58,6 @@ class CodeforcesFetcher {
 
     this.activeRequests++;
     const { handle, resolve, reject } = this.queue.shift();
-    console.log(`[cfFetcher] 🚀 Processing ${handle} (Active: ${this.activeRequests}/${this.CONCURRENCY_LIMIT})`);
 
     try {
       // Fetch both endpoints in parallel for this handle
@@ -73,12 +70,10 @@ class CodeforcesFetcher {
       let solvedCount = undefined;
 
       if (ratingRes && ratingRes.data && ratingRes.data.status === 'OK') {
-        console.log(`[cfFetcher] Raw Rating API for ${handle}:`, ratingRes.data);
         contestsCount = ratingRes.data.result.length;
       }
 
       if (statusRes && statusRes.data && statusRes.data.status === 'OK') {
-        console.log(`[cfFetcher] Raw Status API for ${handle}: (Total Submissions: ${statusRes.data.result.length})`);
         const solved = new Set();
         statusRes.data.result.forEach(submission => {
           if (submission.verdict === 'OK' && submission.problem && submission.problem.name) {
@@ -94,16 +89,13 @@ class CodeforcesFetcher {
         solvedCount: solvedCount !== undefined ? solvedCount : 0
       };
 
-      console.log(`[cfFetcher] ✅ Success for ${handle}:`, stats);
       this.setCachedStats(handle, stats);
       resolve({ data: { stats } });
 
     } catch (error) {
-      console.error(`[cfFetcher] ❌ Error for ${handle}:`, error.message);
       reject(error);
     } finally {
       this.activeRequests--;
-      console.log(`[cfFetcher] 🏁 Finished ${handle} (Active: ${this.activeRequests}/${this.CONCURRENCY_LIMIT})`);
       
       // Wait 250ms before allowing another request to start, just to be safe
       setTimeout(() => this.processQueue(), 250);
