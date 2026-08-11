@@ -9,6 +9,8 @@ export default function Contests() {
   const [contests, setContests] = useState(null);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 12;
 
   useEffect(() => {
     contestService.getUpcoming()
@@ -64,10 +66,11 @@ export default function Contests() {
         )}
 
         {contests && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {contests.map((c) => (
-              <div 
-                key={c.vanity || c.id || c.name} 
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {contests.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map((c) => (
+                <div 
+                  key={c.vanity || c.id || c.name} 
                 className="bg-slate-800/80 backdrop-blur-md rounded-xl shadow-sm hover:shadow-xl hover:-translate-y-1 border border-slate-700 transition-all duration-300 flex flex-col overflow-hidden group"
               >
                 <div className="p-6 flex-1">
@@ -108,7 +111,31 @@ export default function Contests() {
                 </div>
               </div>
             ))}
-          </div>
+            </div>
+
+            {/* Pagination Controls */}
+            {Math.ceil(contests.length / ITEMS_PER_PAGE) > 1 && (
+              <div className="flex justify-center items-center mt-12 space-x-4">
+                <button 
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className={`px-5 py-2 rounded-lg font-medium transition-all duration-300 flex items-center ${currentPage === 1 ? 'bg-slate-800/50 text-slate-500 cursor-not-allowed border border-white/5' : 'bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white shadow-lg shadow-indigo-500/30 border border-indigo-400/30'}`}
+                >
+                  Previous
+                </button>
+                <span className="text-slate-300 font-medium px-4 py-2 bg-slate-900/50 rounded-lg border border-white/10">
+                  Page <span className="text-indigo-400 font-bold">{currentPage}</span> of <span className="text-white font-bold">{Math.ceil(contests.length / ITEMS_PER_PAGE)}</span>
+                </span>
+                <button 
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(contests.length / ITEMS_PER_PAGE)))}
+                  disabled={currentPage === Math.ceil(contests.length / ITEMS_PER_PAGE)}
+                  className={`px-5 py-2 rounded-lg font-medium transition-all duration-300 flex items-center ${currentPage === Math.ceil(contests.length / ITEMS_PER_PAGE) ? 'bg-slate-800/50 text-slate-500 cursor-not-allowed border border-white/5' : 'bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white shadow-lg shadow-indigo-500/30 border border-indigo-400/30'}`}
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>

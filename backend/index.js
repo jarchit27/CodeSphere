@@ -205,11 +205,24 @@ app.delete("/delete-friend/:friendId" , authenticateToken ,async(req, res)=>{
 
 app.get("/get-all-friends/" , authenticateToken ,async(req, res)=>{
     const {user} = req.user;
+    
+    // Pagination parameters (default page 1, limit 12)
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 12;
+    const skip = (page - 1) * limit;
+
     try{
-        const friends = await Friend.find({userId: user._id});
+        const totalFriends = await Friend.countDocuments({userId: user._id});
+        const totalPages = Math.ceil(totalFriends / limit);
+        
+        const friends = await Friend.find({userId: user._id}).skip(skip).limit(limit);
+        
         return res.json({
             error: false,
             friends,
+            currentPage: page,
+            totalPages: totalPages === 0 ? 1 : totalPages,
+            totalFriends,
             message:"All friends successfully",
         });
     }
@@ -296,12 +309,24 @@ app.delete("/delete-problem/:problemId" , authenticateToken ,async(req, res)=>{
 
 app.get("/get-all-problems/" , authenticateToken ,async(req, res)=>{
     const {user} = req.user;
+    
+    // Pagination parameters (default page 1, limit 12)
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 12;
+    const skip = (page - 1) * limit;
 
     try{
-        const problems = await Problem.find({userId: user._id});
+        const totalProblems = await Problem.countDocuments({userId: user._id});
+        const totalPages = Math.ceil(totalProblems / limit);
+        
+        const problems = await Problem.find({userId: user._id}).skip(skip).limit(limit);
+        
         return res.json({
             error: false,
             problems,
+            currentPage: page,
+            totalPages: totalPages === 0 ? 1 : totalPages,
+            totalProblems,
             message:"All Problems successfully",
         });
 

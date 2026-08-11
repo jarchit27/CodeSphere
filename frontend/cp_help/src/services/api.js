@@ -13,14 +13,14 @@ export const friendService = {
   add: (data) => axiosInstance.post('/add-friend', data),
   edit: (id, data) => axiosInstance.put(`/edit-friend/${id}`, data),
   delete: (id) => axiosInstance.delete(`/delete-friend/${id}`),
-  getAll: () => axiosInstance.get('/get-all-friends'),
+  getAll: (page = 1) => axiosInstance.get(`/get-all-friends/?page=${page}`),
   search: (query) => axiosInstance.get(`/search-friend/?query=${query}`),
   getStats: (handle) => axiosInstance.get(`/friend-stats/${handle}`)
 };
 
 // Problems Endpoints
 export const problemService = {
-  getAll: () => axiosInstance.get('/get-all-problems/'),
+  getAll: (page = 1) => axiosInstance.get(`/get-all-problems/?page=${page}`),
   add: (problemData) => axiosInstance.post('/add-problem', problemData),
   delete: (problemId) => axiosInstance.delete(`/delete-problem/${problemId}`),
 };

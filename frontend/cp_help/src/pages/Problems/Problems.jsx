@@ -17,6 +17,8 @@ const Problems = () => {
   const [problems, setProblems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   
   // UI State
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,12 +44,14 @@ const Problems = () => {
   const [addSuccess, setAddSuccess] = useState(false);
   
   // Fetch all problems
-  const fetchProblems = async() => {
+  const fetchProblems = async(page = 1) => {
     setIsLoading(true);
     try {
-      const response = await problemService.getAll();
+      const response = await problemService.getAll(page);
       if(response.data && response.data.problems) {
         setProblems(response.data.problems);
+        setCurrentPage(response.data.currentPage || 1);
+        setTotalPages(response.data.totalPages || 1);
         
         // Extract all unique tags
         const tags = new Set();
@@ -129,8 +133,8 @@ const Problems = () => {
     try {
       const response = await problemService.delete(problemId);
       if(response.data && !response.data.error) {
-        // Remove problem from list
-        setProblems(problems.filter(problem => problem._id !== problemId));
+        // Remove problem from list or refetch
+        fetchProblems(currentPage);
       }
     } catch(error) {
       setError("Failed to delete problem. Please try again later.");
@@ -224,7 +228,7 @@ const Problems = () => {
   
   // Load data when component mounts
   useEffect(() => {
-    fetchProblems();
+    fetchProblems(1);
     return () => {};
   }, []);
   
@@ -567,6 +571,30 @@ const Problems = () => {
                   ))}
                 </tbody>
               </table>
+              
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center p-6 border-t border-slate-700 bg-slate-800/30 space-x-4">
+                  <button 
+                    onClick={() => fetchProblems(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className={`px-5 py-2 rounded-lg font-medium transition-all duration-300 flex items-center ${currentPage === 1 ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed border border-white/5' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white shadow-lg border border-blue-400/30'}`}
+                  >
+                    Previous
+                  </button>
+                  <span className="text-slate-300 font-medium px-4 py-2 bg-slate-900/50 rounded-lg border border-white/10">
+                    Page <span className="text-blue-400 font-bold">{currentPage}</span> of <span className="text-white font-bold">{totalPages}</span>
+                  </span>
+                  <button 
+                    onClick={() => fetchProblems(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className={`px-5 py-2 rounded-lg font-medium transition-all duration-300 flex items-center ${currentPage === totalPages ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed border border-white/5' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white shadow-lg border border-blue-400/30'}`}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+
             </div>
           )}
         </div>
