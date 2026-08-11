@@ -569,14 +569,12 @@ app.use((err, req, res, next) => {
 });
 
 // --- DEPLOYMENT: Serve Frontend in Production ---
-if (process.env.NODE_ENV === "production") {
-    const staticPath = path.join(__dirname, "../frontend/cp_help/dist");
-    app.use(express.static(staticPath));
-    
-    app.get(/.*/, (req, res) => {
-        res.sendFile(path.join(staticPath, "index.html"));
-    });
-}
+const staticPath = path.join(__dirname, "../frontend/cp_help/dist");
+app.use(express.static(staticPath));
+
+app.get(/.*/, (req, res) => {
+    res.sendFile(path.join(staticPath, "index.html"));
+});
 
 app.listen(process.env.PORT, () => {
     console.log(`Server is running on port ${process.env.PORT}`);
