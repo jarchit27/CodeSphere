@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PasswordInput from '../../components/Inputs/PasswordInput';
 import { Link, useNavigate } from 'react-router-dom';
 import { validateEmail } from '../../utils/helper';
@@ -13,7 +13,14 @@ const SignUp = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const navigate = useNavigate();
-  const { fetchUser } = useAuth();
+  const { fetchUser, user, loading } = useAuth();
+
+  // If user is already logged in, redirect them to dashboard immediately
+  useEffect(() => {
+    if (!loading && user && localStorage.getItem('token')) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, loading, navigate]);
 
   const handleSignUp = async (e) => {
     e.preventDefault();
@@ -50,7 +57,7 @@ const SignUp = () => {
       if (response.data?.accessToken) {
         localStorage.setItem("token", response.data.accessToken);
         await fetchUser(); // Update the global auth state
-        navigate("/dashboard");
+        navigate("/dashboard", { replace: true });
       }
     } catch (err) {
       setError(

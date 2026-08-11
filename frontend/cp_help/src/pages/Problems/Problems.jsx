@@ -64,10 +64,6 @@ const Problems = () => {
       }
     } catch(error) {
       setError("Failed to fetch problems. Please try again later.");
-      if(error.response && error.response.status === 401) {
-        localStorage.clear();
-        navigate("/login");
-      }
     } finally {
       setIsLoading(false);
     }

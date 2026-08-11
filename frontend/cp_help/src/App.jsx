@@ -34,7 +34,7 @@ const App = () => {
           
           <div className="relative z-10">
             <Routes>
-              <Route path='/' element={<Navigate to="/login" />} />
+              <Route path='/' element={<Navigate to="/dashboard" replace />} />
               <Route path='/login' element={<Login />} />
               <Route path='/signup' element={<SignUp />} />
               
@@ -46,6 +46,9 @@ const App = () => {
                 <Route path="/compare" element={<Compare />} />
                 <Route path="/contests" element={<Contests />} />
               </Route>
+
+              {/* Catch-all route to prevent blank screens on invalid URLs */}
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </div>
         </div>

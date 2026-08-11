@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authService } from '../services/api';
-import { useNavigate } from 'react-router-dom';
 
 const AuthContext = createContext();
 
@@ -13,6 +12,7 @@ export const AuthProvider = ({ children }) => {
   const fetchUser = async () => {
     const token = localStorage.getItem('token');
     if (!token) {
+      setUser(null);
       setLoading(false);
       return;
     }
@@ -23,6 +23,7 @@ export const AuthProvider = ({ children }) => {
         setUser(response.data.user);
       } else {
         localStorage.removeItem('token');
+        setUser(null);
       }
     } catch (error) {
       localStorage.removeItem('token');
@@ -34,6 +35,25 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     fetchUser();
+  }, []);
+
+  // Cross-tab synchronization: when another tab logs out (removes 'token'),
+  // the browser fires a 'storage' event on all OTHER tabs.
+  // We catch it here and instantly clear this tab's user state.
+  useEffect(() => {
+    const syncLogout = (event) => {
+      if (event.key === 'token' && !event.newValue) {
+        // Token was removed in another tab — log this tab out too
+        setUser(null);
+      }
+      if (event.key === 'token' && event.newValue) {
+        // Token was added in another tab — fetch user for this tab too
+        fetchUser();
+      }
+    };
+
+    window.addEventListener('storage', syncLogout);
+    return () => window.removeEventListener('storage', syncLogout);
   }, []);
 
   const logout = () => {
@@ -51,7 +71,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

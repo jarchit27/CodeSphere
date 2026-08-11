@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import PasswordInput from '../../components/Inputs/PasswordInput';
 import { validateEmail } from '../../utils/helper';
@@ -11,7 +11,14 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [error, setError]       = useState(null);
   const navigate = useNavigate();
-  const { fetchUser } = useAuth();
+  const { fetchUser, user, loading } = useAuth();
+
+  // If user is already logged in, redirect them to dashboard immediately
+  useEffect(() => {
+    if (!loading && user && localStorage.getItem('token')) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, loading, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -29,7 +36,7 @@ const Login = () => {
       if (data.accessToken) {
         localStorage.setItem("token", data.accessToken);
         await fetchUser(); // Update the global auth state
-        navigate("/dashboard");
+        navigate("/dashboard", { replace: true });
       }
     } catch (err) {
       setError(err.response?.data?.message || "An unexpected error occurred.");

@@ -49,7 +49,7 @@ app.post("/create-account", async(req, res) =>{
     const isUser = await User.findOne({email: email});
 
     if(isUser){
-        return res.json({error:true, message:"User already exists"})
+        return res.status(409).json({error:true, message:"User already exists"})
     }
     
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -86,7 +86,7 @@ app.post("/login" , async(req, res)=>{
     if(!userInfo){
         return res.status(400).json({error:true , message: "User not found"})
     }
-    const isPasswordValid = await bcrypt.compare(password, userInfo.password) || userInfo.password === password;
+    const isPasswordValid = await bcrypt.compare(password, userInfo.password);
     if(userInfo.email == email && isPasswordValid)
     {
         const accessToken = jwt.sign({ user: { _id: userInfo._id } }, process.env.ACCESS_TOKEN_SECRET,{expiresIn:"36000m"});

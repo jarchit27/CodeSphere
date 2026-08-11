@@ -13,8 +13,8 @@ const Navbar = ({ userInfo, showSearchBar, onSearchFriend, handleClearSearch }) 
   const { logout } = useAuth(); // If AuthContext exports logout
 
   const onLogout = () => {
-    localStorage.clear(); // Fallback
-    navigate('/login');
+    logout(); // Clear AuthContext state properly
+    navigate('/login', { replace: true });
   };
 
   const navLinks = [
