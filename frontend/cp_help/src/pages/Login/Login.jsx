@@ -92,23 +92,29 @@ const Login = () => {
               )}
 
               <button 
-                type="submit" 
-                className="w-full py-3 mt-2 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white 
-                font-semibold rounded-lg shadow-lg transform transition-all duration-200 hover:scale-105 hover:shadow-cyan-500/25 focus:outline-none focus:ring-2 
-                focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+                type="submit"
+                className="w-full py-3 mt-2 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-semibold rounded-lg shadow-lg transform transition-all duration-200 hover:scale-105 hover:shadow-cyan-500/25 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-gray-800"
               >
                 Login
               </button>
 
-              <p className="text-sm text-center mt-6 text-gray-300">
-                Not registered yet?{" "}
+              <div className="flex justify-between items-center mt-6">
                 <Link
-                  to="/signup"
-                  className="font-medium text-cyan-400 underline hover:text-cyan-300 transition-colors duration-200"
+                  to="/forgot-password"
+                  className="text-sm font-medium text-cyan-400 hover:text-cyan-300 transition-colors duration-200"
                 >
-                  Create an Account
+                  Forgot Password?
                 </Link>
-              </p>
+                <p className="text-sm text-gray-300">
+                  New here?{" "}
+                  <Link
+                    to="/create-account"
+                    className="font-medium text-cyan-400 hover:text-cyan-300 transition-colors duration-200"
+                  >
+                    Create Account
+                  </Link>
+                </p>
+              </div>
             </form>
           </div>
 

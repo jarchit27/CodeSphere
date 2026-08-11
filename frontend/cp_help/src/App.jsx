@@ -3,6 +3,8 @@ import Home from './pages/Home/Home';
 import Login from './pages/Login/Login';
 import SignUp from './pages/SignUp/SignUp';
 import VerifyEmail from "./pages/VerifyEmail/VerifyEmail";
+import ForgotPassword from './pages/ForgotPassword/ForgotPassword';
+import ResetPassword from './pages/ResetPassword/ResetPassword';
 import Profile from "./pages/Profile/Profile";
 import Problems from "./pages/Problems/Problems";
 import Compare from './pages/Compare/Compare';
@@ -39,6 +41,8 @@ const App = () => {
               <Route path='/login' element={<Login />} />
               <Route path='/signup' element={<SignUp />} />
               <Route path='/verify-email' element={<VerifyEmail />} />
+              <Route path='/forgot-password' element={<ForgotPassword />} />
+              <Route path='/reset-password' element={<ResetPassword />} />
               
               {/* Protected Routes */}
               <Route element={<ProtectedRoute />}>

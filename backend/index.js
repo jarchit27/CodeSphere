@@ -179,6 +179,99 @@ apiV1.post("/login" , authLimiter, catchAsync(async(req, res)=>{
     }
 }));
 
+// --- FORGOT PASSWORD ---
+apiV1.post("/forgot-password", authLimiter, catchAsync(async (req, res) => {
+    const { email } = req.body;
+    if (!email) {
+        return res.status(400).json({ error: true, message: "Email is required" });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+        return res.status(404).json({ error: true, message: "User not found" });
+    }
+
+    // Cooldown check (60 seconds)
+    if (user.lastResetOtpSentAt) {
+        const timeSinceLastOtp = Date.now() - user.lastResetOtpSentAt.getTime();
+        if (timeSinceLastOtp < 60000) {
+            return res.status(429).json({ error: true, message: "Please wait 60 seconds before trying again." });
+        }
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedOtp = await bcrypt.hash(otp, 10);
+
+    user.resetOtp = hashedOtp;
+    user.resetOtpExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins expiry
+    user.resetOtpAttempts = 0;
+    user.lastResetOtpSentAt = new Date();
+    await user.save();
+
+    await sendVerificationEmail(email, otp, "reset");
+
+    return res.json({
+        error: false,
+        message: "Password reset OTP sent to your email.",
+    });
+}));
+
+// --- RESET PASSWORD ---
+apiV1.post("/reset-password", authLimiter, catchAsync(async (req, res) => {
+    const { email, otp, newPassword } = req.body;
+    
+    if (!email || !otp || !newPassword) {
+        return res.status(400).json({ error: true, message: "Email, OTP, and new password are required" });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user || !user.resetOtp) {
+        return res.status(400).json({ error: true, message: "Invalid request or OTP expired" });
+    }
+
+    // Check expiry
+    if (Date.now() > user.resetOtpExpires.getTime()) {
+        user.resetOtp = undefined;
+        user.resetOtpExpires = undefined;
+        user.resetOtpAttempts = undefined;
+        await user.save();
+        return res.status(400).json({ error: true, message: "OTP has expired. Please request a new one." });
+    }
+
+    // Check attempt limit
+    if (user.resetOtpAttempts >= 5) {
+        user.resetOtp = undefined;
+        user.resetOtpExpires = undefined;
+        user.resetOtpAttempts = undefined;
+        await user.save();
+        return res.status(400).json({ error: true, message: "Too many failed attempts. Please request a new OTP." });
+    }
+
+    const isOtpValid = await bcrypt.compare(otp, user.resetOtp);
+    if (!isOtpValid) {
+        user.resetOtpAttempts += 1;
+        await user.save();
+        const remaining = 5 - user.resetOtpAttempts;
+        return res.status(400).json({ error: true, message: `Invalid OTP. ${remaining} attempt(s) remaining.` });
+    }
+
+    // Valid OTP - Reset Password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    
+    // Clear reset fields
+    user.resetOtp = undefined;
+    user.resetOtpExpires = undefined;
+    user.resetOtpAttempts = undefined;
+    // We leave lastResetOtpSentAt to still enforce the 60s cooldown if they immediately forget again
+    await user.save();
+
+    return res.json({
+        error: false,
+        message: "Password reset successfully. You can now login.",
+    });
+}));
+
 apiV1.post("/verify-email", authLimiter, catchAsync(async(req, res) => {
     const { email, otp } = req.body;
     if (!email || !otp) {
