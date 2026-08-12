@@ -6,6 +6,8 @@
 
 A sleek, lightning-fast dashboard to monitor live ratings, solved problems, and upcoming contests without ever getting IP banned by Codeforces! Built with modern React and Node.js.
 
+🚀 **Live Demo:** [https://codesphere-ivhb.onrender.com](https://codesphere-ivhb.onrender.com)
+
 </div>
 
 ---
@@ -18,7 +20,8 @@ A sleek, lightning-fast dashboard to monitor live ratings, solved problems, and 
 - **Optimistic UI:** Buttery smooth user experience. Adding or deleting a friend instantly updates the UI without flashing skeletons or causing full-page reloads.
 - **In-Depth Analysis:** Click on **View Analysis** for any friend to see beautiful graphs and charts of their submission history and rating changes (powered by Recharts and Chart.js).
 - **Dynamic Colored Ranks:** Friend cards dynamically match the official Codeforces rating colors (Newbie Gray ➔ Legendary Grandmaster Red).
-- **Secure Authentication:** Keep your tracked friends private with JWT-based authentication and secure MongoDB storage.
+- **Bulletproof Authentication:** Complete with secure JWT sessions, Email OTP verification, spam protection, and a robust "Forgot Password" flow.
+- **Production Ready:** Fully optimized for single-service deployment on Render.
 
 ---
 
@@ -70,29 +73,51 @@ CodeSphere uses an optimized serverless-hybrid architecture. The backend strictl
 
 ```mermaid
 sequenceDiagram
-    participant User
-    participant React as React UI
-    participant Queue as cfFetcher (Queue)
-    participant Node as Node Backend
-    participant Mongo as MongoDB
+    autonumber
+    
+    actor User
+    participant React as Frontend (React UI)
+    participant Fetcher as cfFetcher (Cache & Queue)
+    participant Node as Backend (Node.js/Express)
+    participant Mongo as MongoDB Atlas
+    participant Email as Email Service (OTP)
     participant CF as Codeforces API
 
+    %% Authentication Flow
+    Note over User, Mongo: 1. Secure Authentication Flow
+    User->>React: Sign Up / Forgot Password
+    React->>Node: POST /api/auth/*
+    Node->>Mongo: Create PendingUser / Update User
+    Node->>Email: Send OTP (with 60s cooldown)
+    Email-->>User: Delivers 6-digit OTP
+    User->>React: Enters OTP & submits
+    React->>Node: POST /verify-email OR /reset-password
+    Node->>Mongo: Validate OTP & Attempt Limits
+    Mongo-->>Node: Success
+    Node-->>React: Returns JWT Access Token
+
+    %% Core Data Flow
+    Note over User, CF: 2. Core Dashboard & Distributed Data Flow
     User->>React: Opens Dashboard
-    React->>Node: GET /get-all-friends
-    Node->>Mongo: Fetch friends list
-    Mongo-->>Node: Return friends
-    Node-->>React: Returns handles & names
+    React->>Node: GET /api/friends/get-all (Requires JWT)
+    Node->>Mongo: Fetch user's friends/problems
+    Mongo-->>Node: Return database records
+    Node-->>React: Returns handles (e.g. "tourist", "Benq")
     
-    Note over React, CF: Initial Batch Fetch
+    %% Lazy Loading & External API
+    Note over React, CF: 3. Lazy Loading & Anti-Ban Architecture
     React->>CF: Batch GET user.info (for ranks/ratings)
-    CF-->>React: Returns user details
+    CF-->>React: Returns lightweight user profiles
     
-    Note over React, CF: Visual Lazy Loading Phase (Heavy Stats)
-    React->>Queue: User scrolls to friend card
-    Queue->>Queue: Check localStorage cache
-    Queue->>CF: Direct API calls (user.rating, user.status)
-    CF-->>Queue: Returns live stats
-    Queue-->>React: Updates UI instantly!
+    React->>Fetcher: Queue fetch for heavy stats (Solved/Contests)
+    Fetcher->>Fetcher: Check localStorage cache (6hr expiry)
+    alt Cache Miss
+        Fetcher->>CF: Direct API calls (user.rating, user.status)
+        CF-->>Fetcher: Returns 10MB+ payload
+        Fetcher->>Fetcher: Deduplicate problems & process stats
+        Fetcher->>Fetcher: Save to localStorage cache
+    end
+    Fetcher-->>React: Updates UI instantly!
 ```
 
 ---
@@ -126,8 +151,11 @@ The Node.js backend serves as a secure gateway for Authentication and basic User
 ### Authentication Routes
 | Method | Endpoint | Description | Body |
 |--------|----------|-------------|------|
-| `POST` | `/api/auth/register` | Register a new user | `{ email, password }` |
+| `POST` | `/api/auth/create-account` | Register and send OTP | `{ email, password, fullname, codeforcesHandle }` |
+| `POST` | `/api/auth/verify-email` | Verify OTP to finalize signup | `{ email, otp }` |
 | `POST` | `/api/auth/login` | Login and receive a JWT | `{ email, password }` |
+| `POST` | `/api/auth/forgot-password`| Send reset OTP to email | `{ email }` |
+| `POST` | `/api/auth/reset-password` | Reset password using OTP | `{ email, otp, newPassword }` |
 
 ### Friend Management Routes
 *All these routes require a valid `Authorization: Bearer <token>` header.*
@@ -154,11 +182,12 @@ A dedicated analytical view for a single user. It compiles data from three separ
 
 ---
 
-## ⚙️ Getting Started
+## ⚙️ Local Development Setup
 
 ### Prerequisites
 - [Node.js](https://nodejs.org/) installed
 - A [MongoDB](https://www.mongodb.com/) cluster URI (Local or Atlas)
+- An Email account for OTP sending (Gmail with App Password recommended)
 
 ### 1. Clone the Repository
 ```bash
@@ -166,38 +195,43 @@ git clone https://github.com/jarchit27/CodeSphere.git
 cd CodeSphere
 ```
 
-### 2. Backend Setup
-Navigate to the backend directory and install dependencies:
-```bash
-cd backend
-npm install
-```
-
+### 2. Environment Variables
 Create a `.env` file in the `backend` directory:
 ```env
 PORT=5000
 MONGO_URI=your_mongodb_connection_string_here
 ACCESS_TOKEN_SECRET=your_super_secret_jwt_key
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASS=your_app_password
+NODE_ENV=development
 ```
 
-Start the backend server (runs on Port 5000):
+### 3. Start the Backend
 ```bash
+cd backend
+npm install
 npm start
 ```
 
-### 3. Frontend Setup
-Open a new terminal, navigate to the frontend directory, and install dependencies:
+### 4. Start the Frontend
+Open a new terminal:
 ```bash
 cd frontend/cp_help
 npm install
-```
-
-Start the Vite development server:
-```bash
 npm run dev
 ```
+Your app will be running at `http://localhost:5173`.
 
-Your app will be running at `http://localhost:5173`. Enjoy tracking! 🚀
+---
+
+## 🚀 Deployment (Render)
+CodeSphere is architected for seamless single-service deployment on Render. The backend Express server automatically builds and serves the compiled React frontend in production.
+
+1. Connect your GitHub repository to a new Render **Web Service**.
+2. **Build Command:** `npm run build` *(This runs the custom script in the root package.json)*
+3. **Start Command:** `npm start`
+4. Add your Environment Variables, ensuring `NODE_ENV=production` is set.
+5. Deploy!
 
 ---
 
