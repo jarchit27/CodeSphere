@@ -5,7 +5,7 @@ class CodeforcesFetcher {
     this.queue = [];
     this.activeRequests = 0;
     this.CONCURRENCY_LIMIT = 3;
-    this.CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours in ms
+    this.CACHE_DURATION = 60 * 60 * 1000; // 1 hours in ms
   }
 
   // Get cached stats from localStorage
