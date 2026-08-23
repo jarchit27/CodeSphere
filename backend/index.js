@@ -132,8 +132,8 @@ apiV1.post("/create-account", authLimiter, catchAsync(async(req, res) =>{
         { upsert: true, new: true }
     );
     
-    // Send OTP via email (or log if no credentials)
-    await sendVerificationEmail(email, otp);
+    // Send OTP via email in background (or log if no credentials)
+    sendVerificationEmail(email, otp).catch(console.error);
 
     return res.json({
         error: false,
@@ -209,7 +209,7 @@ apiV1.post("/forgot-password", authLimiter, catchAsync(async (req, res) => {
     user.lastResetOtpSentAt = new Date();
     await user.save();
 
-    await sendVerificationEmail(email, otp, "reset");
+    sendVerificationEmail(email, otp, "reset").catch(console.error);
 
     return res.json({
         error: false,
@@ -345,7 +345,7 @@ apiV1.post("/resend-otp", authLimiter, catchAsync(async(req, res) => {
     pendingUser.createdAt = new Date(); // Reset TTL
     await pendingUser.save();
 
-    await sendVerificationEmail(email, otp);
+    sendVerificationEmail(email, otp).catch(console.error);
 
     return res.json({ error: false, message: "A new OTP has been sent." });
 }));
