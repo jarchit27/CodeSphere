@@ -28,10 +28,11 @@ const sendVerificationEmail = async (email, otp, context = "signup") => {
     }
 
     const transporter = nodemailer.createTransport({
-        service: 'gmail', // You can change to SendGrid, Outlook, etc.
         host: 'smtp.gmail.com',
         port: 465,
         secure: true,
+        // Force IPv4 because Render's IPv6 outbound routing is broken
+        family: 4, 
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS
