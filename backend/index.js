@@ -35,6 +35,7 @@ const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const axios = require("axios");
 const app = express();
+app.set("trust proxy", 1);
 const jwt = require('jsonwebtoken');
 const {authenticateToken, sendVerificationEmail} = require("./utilities");
 const rateLimit = require("express-rate-limit");
