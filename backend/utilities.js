@@ -13,6 +13,8 @@ function authenticateToken(req, res,next){
 }
 
 const nodemailer = require('nodemailer');
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
 
 const sendVerificationEmail = async (email, otp, context = "signup") => {
     // In production, these should be in .env. We fallback to console log if missing.
