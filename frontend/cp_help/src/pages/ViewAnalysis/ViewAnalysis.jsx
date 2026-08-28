@@ -153,7 +153,7 @@ const ViewAnalysis = ({ profileData, ratingHistory, submissions }) => {
                 </div>
               </div>
               <div className="ml-auto hidden md:flex">
-                <div className="bg-slate-800/80 backdrop-blur-md rounded-xl p-4 border border-slate-700 shadow-sm min-w-[200px]">
+                <div className="bg-slate-800/80 backdrop-blur-md rounded-xl p-4 border border-blue-400/20 shadow-lg shadow-blue-500/10 min-w-[200px]">
                   <div className="grid grid-cols-2 gap-6 text-center">
                     <div>
                       <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Max Rating</div>
@@ -177,9 +177,9 @@ const ViewAnalysis = ({ profileData, ratingHistory, submissions }) => {
 
       {/* Dashboard */}
       <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 mt-6">
           {/* Stats Card 1 */}
-          <div className="bg-slate-800/80 backdrop-blur-md rounded-lg shadow-md p-5 border border-slate-700">
+          <div className="bg-slate-900/60 backdrop-blur-xl rounded-2xl shadow-lg shadow-purple-500/10 p-5 border border-purple-400/20">
             <h3 className="text-lg font-semibold text-slate-200 mb-3">📊 Problems Solved</h3>
             <div className="text-3xl font-bold text-blue-400 mb-2">
               {calculateTotal(levelData)}
@@ -188,7 +188,7 @@ const ViewAnalysis = ({ profileData, ratingHistory, submissions }) => {
           </div>
           
           {/* Stats Card 2 */}
-          <div className="bg-slate-800/80 backdrop-blur-md rounded-lg shadow-md p-5 border border-slate-700">
+          <div className="bg-slate-800/80 backdrop-blur-md rounded-xl shadow-lg shadow-indigo-500/10 p-5 border border-indigo-400/20">
             <h3 className="text-lg font-semibold text-slate-200 mb-3">🧩 Total Submissions</h3>
             <div className="text-3xl font-bold text-indigo-400 mb-2">
               {calculateTotal(verdictData)}
@@ -199,7 +199,7 @@ const ViewAnalysis = ({ profileData, ratingHistory, submissions }) => {
           </div>
           
           {/* Stats Card 3 */}
-          <div className="bg-slate-800/80 backdrop-blur-md rounded-lg shadow-md p-5 border border-slate-700">
+          <div className="bg-slate-800/80 backdrop-blur-md rounded-xl shadow-lg shadow-blue-500/10 p-5 border border-blue-400/20">
             <h3 className="text-lg font-semibold text-slate-200 mb-3">🔝 Top Tags</h3>
             <div className="space-y-1">
               {getTopTags().map((item, index) => (

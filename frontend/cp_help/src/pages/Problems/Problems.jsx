@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { problemService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Search, Plus, Tag, ChevronDown, ChevronUp, X } from 'lucide-react';
+import CustomSelect from '../../components/CustomSelect/CustomSelect';
 
 // Constants for platform and difficulty options based on your schema
 const PLATFORMS = ['LeetCode', 'Codeforces', 'CodeChef', 'GeeksforGeeks', 'HackerRank', 'AtCoder', 'TopCoder', 'Other'];
@@ -47,20 +48,25 @@ const Problems = () => {
   const fetchProblems = async(page = 1) => {
     setIsLoading(true);
     try {
-      const response = await problemService.getAll(page);
+      const params = {
+        page,
+        query: searchQuery,
+        platform: platformFilter,
+        difficulty: difficultyFilter,
+        tag: tagFilter,
+        sortBy: sortConfig.key,
+        order: sortConfig.direction
+      };
+      
+      const response = await problemService.getAll(params);
       if(response.data && response.data.problems) {
         setProblems(response.data.problems);
         setCurrentPage(response.data.currentPage || 1);
         setTotalPages(response.data.totalPages || 1);
         
-        // Extract all unique tags
-        const tags = new Set();
-        response.data.problems.forEach(problem => {
-          if (problem.tags && Array.isArray(problem.tags)) {
-            problem.tags.forEach(tag => tags.add(tag));
-          }
-        });
-        setAllTags(Array.from(tags));
+        if (response.data.allTags) {
+          setAllTags(response.data.allTags);
+        }
       }
     } catch(error) {
       setError("Failed to fetch problems. Please try again later.");
@@ -174,38 +180,8 @@ const Problems = () => {
     }));
   };
   
-  // Filter problems based on search query and filters
-  const filteredProblems = problems.filter(problem => {
-    const matchesSearch = 
-      problem.questionName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      problem.notes.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesPlatform = platformFilter === 'All' || problem.platform === platformFilter;
-    const matchesDifficulty = difficultyFilter === 'All' || problem.difficulty === difficultyFilter;
-    const matchesTag = tagFilter === '' || 
-      (problem.tags && problem.tags.some(tag => 
-        tag.toLowerCase().includes(tagFilter.toLowerCase())
-      ));
-    
-    return matchesSearch && matchesPlatform && matchesDifficulty && matchesTag;
-  });
-  
-  // Sort filtered problems
-  const sortedProblems = [...filteredProblems].sort((a, b) => {
-    if (sortConfig.key === 'fetchedAt') {
-      return sortConfig.direction === 'asc' 
-        ? new Date(a.fetchedAt) - new Date(b.fetchedAt)
-        : new Date(b.fetchedAt) - new Date(a.fetchedAt);
-    }
-    
-    if (a[sortConfig.key] < b[sortConfig.key]) {
-      return sortConfig.direction === 'asc' ? -1 : 1;
-    }
-    if (a[sortConfig.key] > b[sortConfig.key]) {
-      return sortConfig.direction === 'asc' ? 1 : -1;
-    }
-    return 0;
-  });
+  // Sort filtered problems - DELETED client side logic
+  const sortedProblems = problems;
   
   // Handle sorting
   const requestSort = (key) => {
@@ -222,11 +198,18 @@ const Problems = () => {
     return sortConfig.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />;
   };
   
-  // Load data when component mounts
+  // Load data when filters or sort config change
   useEffect(() => {
     fetchProblems(1);
-    return () => {};
-  }, []);
+  }, [platformFilter, difficultyFilter, tagFilter, sortConfig]);
+
+  // Debounced search
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      fetchProblems(1);
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
   
   return (
     <div className="min-h-screen bg-transparent">
@@ -252,8 +235,14 @@ const Problems = () => {
         
         {/* Add Problem Form */}
         {showAddForm && (
-          <div className="bg-slate-800/90 backdrop-blur-sm rounded-xl shadow-2xl p-6 mb-6 border border-slate-700">
-            <h2 className="text-2xl font-semibold mb-4 text-white">✨ Add New Problem</h2>
+          <div className="bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-8 mb-8 border border-purple-500/20 relative overflow-hidden group">
+            {/* Ambient glow behind the form */}
+            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/10 to-purple-600/10 rounded-2xl blur-xl group-hover:opacity-100 transition duration-1000 group-hover:duration-200 opacity-50"></div>
+            
+            <div className="relative z-10">
+              <h2 className="text-3xl font-bold mb-6 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent flex items-center gap-3">
+                <span className="text-2xl">✨</span> Add New Problem
+              </h2>
             
             {addSuccess && (
               <div className="bg-green-900/80 border border-green-500 text-green-100 px-4 py-3 rounded-lg mb-4">
@@ -261,75 +250,86 @@ const Problems = () => {
               </div>
             )}
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="col-span-1 md:col-span-2">
-                <label className="block text-sm font-medium text-gray-300 mb-1">Question Name*</label>
-                <input
-                  type="text"
-                  name="questionName"
-                  placeholder="Enter question name"
-                  className={`w-full px-3 py-2 bg-slate-700 border ${formErrors.questionName ? 'border-red-500' : 'border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-400`}
-                  value={formData.questionName}
-                  onChange={handleChange}
-                />
+                <label className="block text-sm font-semibold text-indigo-200/90 mb-2 tracking-wide uppercase">Question Name*</label>
+                <div className="relative search-bar-container !rounded-xl">
+                  <div className="search-bar-content w-full h-full flex items-center !p-0">
+                    <input
+                      type="text"
+                      name="questionName"
+                      placeholder="Enter question name"
+                      className={`search-input !py-3 !px-4 ${formErrors.questionName ? 'border border-red-500/50' : ''}`}
+                      value={formData.questionName}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="search-bar-shine"></div>
+                </div>
                 {formErrors.questionName && <p className="text-red-400 text-xs mt-1">{formErrors.questionName}</p>}
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Platform*</label>
-                <select
-                  name="platform"
-                  className={`w-full px-3 py-2 bg-slate-700 border ${formErrors.platform ? 'border-red-500' : 'border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white`}
+              <div className="sort-controls-inner !p-2 !rounded-xl col-span-1 flex flex-col justify-end">
+                <CustomSelect
+                  label="Platform*"
                   value={formData.platform}
-                  onChange={handleChange}
-                >
-                  {PLATFORMS.map(platform => (
-                    <option key={platform} value={platform}>{platform}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setFormData({ ...formData, platform: val })}
+                  options={[
+                    { value: '', label: 'Select Platform' },
+                    ...PLATFORMS.map(p => ({ value: p, label: p }))
+                  ]}
+                />
                 {formErrors.platform && <p className="text-red-400 text-xs mt-1">{formErrors.platform}</p>}
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Difficulty*</label>
-                <select
-                  name="difficulty"
-                  className={`w-full px-3 py-2 bg-slate-700 border ${formErrors.difficulty ? 'border-red-500' : 'border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white`}
+              <div className="sort-controls-inner !p-2 !rounded-xl col-span-1 flex flex-col justify-end">
+                <CustomSelect
+                  label="Difficulty*"
                   value={formData.difficulty}
-                  onChange={handleChange}
-                >
-                  {DIFFICULTY.map(diff => (
-                    <option key={diff} value={diff}>{diff}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setFormData({ ...formData, difficulty: val })}
+                  options={[
+                    { value: '', label: 'Select Difficulty' },
+                    ...DIFFICULTY.map(d => ({ value: d, label: d }))
+                  ]}
+                />
                 {formErrors.difficulty && <p className="text-red-400 text-xs mt-1">{formErrors.difficulty}</p>}
               </div>
               
-              <div className="col-span-1 md:col-span-2">
-                <label className="block text-sm font-medium text-gray-300 mb-1">Question Link*</label>
-                <input
-                  type="url"
-                  name="questionLink"
-                  placeholder="https://example.com/problem"
-                  className={`w-full px-3 py-2 bg-slate-700 border ${formErrors.questionLink ? 'border-red-500' : 'border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-400`}
-                  value={formData.questionLink}
-                  onChange={handleChange}
-                />
+              <div className="col-span-1 md:col-span-2 mt-2">
+                <label className="block text-sm font-semibold text-indigo-200/90 mb-2 tracking-wide uppercase">Question Link*</label>
+                <div className="relative search-bar-container !rounded-xl">
+                  <div className="search-bar-content w-full h-full flex items-center !p-0">
+                    <input
+                      type="url"
+                      name="questionLink"
+                      placeholder="https://example.com/problem"
+                      className={`search-input !py-3 !px-4 ${formErrors.questionLink ? 'border border-red-500/50' : ''}`}
+                      value={formData.questionLink}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="search-bar-shine"></div>
+                </div>
                 {formErrors.questionLink && <p className="text-red-400 text-xs mt-1">{formErrors.questionLink}</p>}
               </div>
               
-              <div className="col-span-1 md:col-span-2">
-                <label className="block text-sm font-medium text-gray-300 mb-1">Tags</label>
+              <div className="col-span-1 md:col-span-2 mt-2">
+                <label className="block text-sm font-semibold text-indigo-200/90 mb-2 tracking-wide uppercase">Tags</label>
                 <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Add a tag (e.g. Arrays, DP)"
-                    className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-400"
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                    list="available-tags-input"
-                  />
+                  <div className="flex-1 relative search-bar-container !rounded-xl">
+                    <div className="search-bar-content w-full h-full flex items-center !p-0">
+                      <input
+                        type="text"
+                        placeholder="Add a tag (e.g. Arrays, DP)"
+                        className="search-input !py-3 !px-4"
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
+                        list="available-tags-input"
+                      />
+                    </div>
+                    <div className="search-bar-shine"></div>
+                  </div>
                   <datalist id="available-tags-input">
                     {allTags.map(tag => (
                       <option key={tag} value={tag} />
@@ -338,22 +338,22 @@ const Problems = () => {
                   <button
                     type="button"
                     onClick={handleAddTag}
-                    className="px-3 py-2 bg-slate-600 text-gray-200 rounded-lg hover:bg-slate-500"
+                    className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/20 border border-blue-400/30 transition-all"
                   >
                     Add
                   </button>
                 </div>
-                <div className="flex flex-wrap gap-2 mt-2">
+                <div className="flex flex-wrap gap-2 mt-4">
                   {formData.tags.map(tag => (
                     <span
                       key={tag}
-                      className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-900/50 text-blue-200 border border-blue-700"
+                      className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-medium bg-purple-900/40 text-purple-200 border border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.15)] transition-all hover:bg-purple-900/60"
                     >
                       {tag}
                       <button
                         type="button"
                         onClick={() => handleRemoveTag(tag)}
-                        className="ml-1 text-blue-300 hover:text-blue-100"
+                        className="ml-2 text-purple-300 hover:text-white transition-colors p-0.5 rounded-full hover:bg-purple-500/20"
                       >
                         <X size={14} />
                       </button>
@@ -362,24 +362,29 @@ const Problems = () => {
                 </div>
               </div>
               
-              <div className="col-span-1 md:col-span-2">
-                <label className="block text-sm font-medium text-gray-300 mb-1">Notes*</label>
-                <textarea
-                  name="notes"
-                  placeholder="Your approach, tips, or solutions"
-                  className={`w-full px-3 py-2 bg-slate-700 border ${formErrors.notes ? 'border-red-500' : 'border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-400`}
-                  value={formData.notes}
-                  onChange={handleChange}
-                  rows={4}
-                ></textarea>
+              <div className="col-span-1 md:col-span-2 mt-2">
+                <label className="block text-sm font-semibold text-indigo-200/90 mb-2 tracking-wide uppercase">Notes*</label>
+                <div className="relative search-bar-container !rounded-xl">
+                  <div className="search-bar-content w-full h-full !p-0">
+                    <textarea
+                      name="notes"
+                      placeholder="Your approach, tips, or solutions"
+                      className={`search-input !py-3 !px-4 w-full bg-transparent border-none outline-none resize-y min-h-[100px] ${formErrors.notes ? 'border border-red-500/50' : ''}`}
+                      value={formData.notes}
+                      onChange={handleChange}
+                      rows={4}
+                    ></textarea>
+                  </div>
+                  <div className="search-bar-shine"></div>
+                </div>
                 {formErrors.notes && <p className="text-red-400 text-xs mt-1">{formErrors.notes}</p>}
               </div>
             </div>
             
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-8 flex justify-end gap-4 border-t border-slate-700/50 pt-6">
               <button
                 type="button"
-                className="px-4 py-2 border border-slate-600 text-gray-300 rounded-lg hover:bg-slate-700"
+                className="px-6 py-2.5 border border-slate-600/60 text-slate-300 rounded-xl hover:bg-slate-700/50 hover:text-white transition-all font-medium min-w-[100px]"
                 onClick={() => setShowAddForm(false)}
                 disabled={isSubmitting}
               >
@@ -387,72 +392,81 @@ const Problems = () => {
               </button>
               <button
                 type="button"
-                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50"
+                className="px-8 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold rounded-xl shadow-lg shadow-purple-500/25 border border-purple-400/30 transition-all hover:-translate-y-0.5 flex items-center justify-center min-w-[160px]"
                 onClick={handleAddProblem}
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Saving...' : 'Save Problem'}
+                {isSubmitting ? (
+                  <Loader2 size={20} className="animate-spin" />
+                ) : (
+                  'Save Problem'
+                )}
               </button>
+            </div>
             </div>
           </div>
         )}
         
         {/* Search and Filter Bar */}
-        <div className="bg-slate-800/90 backdrop-blur-sm rounded-xl shadow-2xl p-4 mb-6 border border-slate-700">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search size={18} className="text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search problems..."
-                className="pl-10 pr-4 py-2 w-full bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-400"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            
-            <div className="flex gap-2 flex-wrap md:flex-nowrap">
-              <select
-                className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
-                value={platformFilter}
-                onChange={(e) => setPlatformFilter(e.target.value)}
-              >
-                <option value="All">All Platforms</option>
-                {PLATFORMS.map(platform => (
-                  <option key={platform} value={platform}>{platform}</option>
-                ))}
-              </select>
-              
-              <select
-                className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
-                value={difficultyFilter}
-                onChange={(e) => setDifficultyFilter(e.target.value)}
-              >
-                <option value="All">All Difficulties</option>
-                {DIFFICULTY.map(diff => (
-                  <option key={diff} value={diff}>{diff}</option>
-                ))}
-              </select>
-              
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Tag size={16} className="text-gray-400" />
-                </div>
+        <div className="mb-8 relative z-10">
+          <div className="flex flex-col md:flex-row gap-6">
+            <div className="flex-1 relative search-bar-container !rounded-2xl shadow-lg shadow-blue-500/10 group">
+              <div className="search-bar-content w-full h-full flex items-center !py-3 !px-5 transition-colors group-hover:bg-slate-900/60">
+                <Search size={20} className="text-blue-400 mr-3 drop-shadow-[0_0_8px_rgba(96,165,250,0.8)]" />
                 <input
                   type="text"
-                  placeholder="Filter by tag"
-                  className="pl-10 pr-4 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-400"
-                  value={tagFilter}
-                  onChange={(e) => setTagFilter(e.target.value)}
-                  list="available-tags"
+                  placeholder="Search for any problem..."
+                  className="search-input text-base"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
-                <datalist id="available-tags">
-                  {allTags.map(tag => (
-                    <option key={tag} value={tag} />
-                  ))}
-                </datalist>
+              </div>
+              <div className="search-bar-shine"></div>
+            </div>
+            
+            <div className="flex gap-4 flex-wrap md:flex-nowrap items-center sort-controls-inner !p-2 !rounded-xl">
+              <CustomSelect
+                label="Platform"
+                value={platformFilter}
+                onChange={setPlatformFilter}
+                options={[
+                  { value: 'All', label: 'All Platforms' },
+                  ...PLATFORMS.map(p => ({ value: p, label: p }))
+                ]}
+              />
+              
+              <div className="sort-divider"></div>
+
+              <CustomSelect
+                label="Difficulty"
+                value={difficultyFilter}
+                onChange={setDifficultyFilter}
+                options={[
+                  { value: 'All', label: 'All Difficulties' },
+                  ...DIFFICULTY.map(d => ({ value: d, label: d }))
+                ]}
+              />
+              
+              <div className="sort-divider"></div>
+
+              <div className="relative search-bar-container w-48 !h-auto !rounded-2xl shadow-lg shadow-purple-500/10 group">
+                <div className="search-bar-content w-full h-full flex items-center !py-3 !px-4 transition-colors group-hover:bg-slate-900/60">
+                  <Tag size={18} className="text-purple-400 mr-2 drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]" />
+                  <input
+                    type="text"
+                    placeholder="Filter by tag"
+                    className="search-input !text-sm"
+                    value={tagFilter}
+                    onChange={(e) => setTagFilter(e.target.value)}
+                    list="available-tags"
+                  />
+                  <datalist id="available-tags">
+                    {allTags.map(tag => (
+                      <option key={tag} value={tag} />
+                    ))}
+                  </datalist>
+                </div>
+                <div className="search-bar-shine"></div>
               </div>
             </div>
           </div>
@@ -461,30 +475,30 @@ const Problems = () => {
         {/* Problems List */}
         <div className="bg-slate-800/90 backdrop-blur-sm rounded-xl shadow-2xl overflow-hidden border border-slate-700">
           <div className="px-6 py-4 border-b border-slate-700">
-            <h2 className="text-xl font-semibold text-white">🌟 Your Coding Problems ({filteredProblems.length})</h2>
+            <h2 className="text-xl font-semibold text-white">🌟 Your Coding Problems ({problems.length})</h2>
           </div>
           
           {isLoading ? (
             <div className="p-8 text-center">
               <p className="text-gray-400">Loading problems...</p>
             </div>
-          ) : filteredProblems.length === 0 ? (
+          ) : problems.length === 0 ? (
             <div className="p-8 text-center">
               <p className="text-gray-400">
-                {problems.length === 0 ? 
-                  "You haven't added any problems yet. Click 'Add Problem' to get started." :
-                  "No problems match your current filters."
+                {searchQuery || platformFilter !== 'All' || difficultyFilter !== 'All' || tagFilter 
+                  ? "No problems match your current filters."
+                  : "You haven't added any problems yet. Click 'Add Problem' to get started."
                 }
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-700">
-                <thead className="bg-slate-700/50">
+                <thead className="bg-slate-800/80 border-b border-slate-700 backdrop-blur-md">
                   <tr>
                     <th 
                       scope="col" 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:text-white"
+                      className="px-6 py-4 text-left text-xs font-semibold text-blue-300 uppercase tracking-wider cursor-pointer hover:text-blue-200 transition-colors"
                       onClick={() => requestSort('questionName')}
                     >
                       <div className="flex items-center gap-1">
@@ -493,7 +507,7 @@ const Problems = () => {
                     </th>
                     <th 
                       scope="col" 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:text-white"
+                      className="px-6 py-4 text-left text-xs font-semibold text-blue-300 uppercase tracking-wider cursor-pointer hover:text-blue-200 transition-colors"
                       onClick={() => requestSort('platform')}
                     >
                       <div className="flex items-center gap-1">
@@ -502,27 +516,27 @@ const Problems = () => {
                     </th>
                     <th 
                       scope="col" 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:text-white"
+                      className="px-6 py-4 text-left text-xs font-semibold text-blue-300 uppercase tracking-wider cursor-pointer hover:text-blue-200 transition-colors"
                       onClick={() => requestSort('difficulty')}
                     >
                       <div className="flex items-center gap-1">
                         Difficulty {getSortIcon('difficulty')}
                       </div>
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-blue-300 uppercase tracking-wider">
                       Tags
                     </th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-4 text-right text-xs font-semibold text-blue-300 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-slate-800/50 divide-y divide-slate-700">
-                  {sortedProblems.map(problem => (
-                    <tr key={problem._id} className="hover:bg-slate-700/50">
+                <tbody className="bg-slate-900/40 divide-y divide-slate-700/50 backdrop-blur-sm">
+                  {problems.map(problem => (
+                    <tr key={problem._id} className="hover:bg-slate-800/60 transition-colors duration-200">
                       <td className="px-6 py-4">
                         <div className="font-medium text-white">{problem.questionName}</div>
-                        <div className="text-sm text-gray-400 mt-1">{problem.notes.length > 80 ? problem.notes.substring(0, 80) + '...' : problem.notes}</div>
+                        <div className="text-sm text-slate-400 mt-1">{problem.notes.length > 80 ? problem.notes.substring(0, 80) + '...' : problem.notes}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-900/50 text-blue-200 border border-blue-700">

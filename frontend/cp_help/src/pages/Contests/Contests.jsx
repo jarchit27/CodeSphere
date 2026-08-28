@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { contestService } from "../../services/api";
 import Navbar from "../../components/Navbar/Navbar";
 import { useAuth } from "../../context/AuthContext";
-import { Calendar, Clock, ExternalLink, AlertCircle, Loader2 } from "lucide-react";
+import { Calendar, Clock, ExternalLink, AlertCircle, Loader2, Filter } from "lucide-react";
+import CustomSelect from "../../components/CustomSelect/CustomSelect";
 
 export default function Contests() {
   const { user } = useAuth();
@@ -10,7 +11,17 @@ export default function Contests() {
   const [total, setTotal] = useState(0);
   const [error, setError] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [platformFilter, setPlatformFilter] = useState('All');
   const ITEMS_PER_PAGE = 12;
+
+  const filteredContests = contests ? contests.filter(c => platformFilter === 'All' || c.host === platformFilter) : null;
+  const displayContests = filteredContests ? filteredContests.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE) : [];
+  const uniqueHosts = contests ? [...new Set(contests.map(c => c.host))] : [];
+
+  // Reset page when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [platformFilter]);
 
   useEffect(() => {
     contestService.getUpcoming()
@@ -43,9 +54,24 @@ export default function Contests() {
             <h1 className="text-3xl font-bold text-white tracking-tight">Upcoming Contests</h1>
             <p className="text-slate-400 mt-1">Discover and track competitive programming contests.</p>
           </div>
-          <div className="bg-slate-800/80 backdrop-blur-md px-4 py-2 rounded-lg shadow-sm border border-slate-700 flex items-center gap-2">
-            <span className="text-sm font-medium text-slate-500">Total Upcoming:</span>
-            <span className="text-lg font-bold text-indigo-600">{total}</span>
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            {contests && (
+              <div className="sort-controls-inner !p-2 !rounded-xl">
+                <CustomSelect
+                  label="Platform"
+                  value={platformFilter}
+                  onChange={setPlatformFilter}
+                  options={[
+                    { value: 'All', label: 'All Platforms' },
+                    ...uniqueHosts.map(h => ({ value: h, label: h }))
+                  ]}
+                />
+              </div>
+            )}
+            <div className="bg-slate-800/80 backdrop-blur-md px-4 py-2 rounded-xl shadow-sm border border-slate-700 flex items-center gap-2">
+              <span className="text-sm font-medium text-slate-500">Total Upcoming:</span>
+              <span className="text-lg font-bold text-indigo-400">{filteredContests ? filteredContests.length : total}</span>
+            </div>
           </div>
         </div>
 
@@ -68,68 +94,73 @@ export default function Contests() {
         {contests && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {contests.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map((c) => (
+              {displayContests.map((c) => {
+                const badgeColor = getBadgeColor(c.host);
+                const borderColorClass = badgeColor.split(' ').find(cls => cls.startsWith('border-'));
+                const hoverBorderColorClass = borderColorClass ? borderColorClass.replace('/30', '/60') : 'border-slate-500/60';
+                
+                return (
                 <div 
                   key={c.vanity || c.id || c.name} 
-                className="bg-slate-800/80 backdrop-blur-md rounded-xl shadow-sm hover:shadow-xl hover:-translate-y-1 border border-slate-700 transition-all duration-300 flex flex-col overflow-hidden group"
-              >
-                <div className="p-6 flex-1">
-                  <div className="flex justify-between items-start mb-4">
-                    <span className={`px-3 py-1 text-xs font-semibold uppercase tracking-wider rounded-full border ${getBadgeColor(c.host)}`}>
-                      {c.host}
-                    </span>
+                  className={`bg-slate-900/60 backdrop-blur-md rounded-2xl shadow-lg hover:shadow-2xl hover:-translate-y-1 border border-slate-700 hover:${hoverBorderColorClass} transition-all duration-300 flex flex-col overflow-hidden group`}
+                >
+                  <div className="p-6 flex-1">
+                    <div className="flex justify-between items-start mb-4">
+                      <span className={`px-3 py-1 text-xs font-semibold uppercase tracking-wider rounded-full border ${badgeColor}`}>
+                        {c.host}
+                      </span>
+                    </div>
+
+                    <h2 className="text-xl font-bold text-white mb-4 line-clamp-2 group-hover:text-indigo-400 transition-colors">
+                      <a href={c.url} target="_blank" rel="noopener noreferrer">
+                        {c.name}
+                      </a>
+                    </h2>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center text-slate-300 text-sm">
+                        <Calendar className="w-4 h-4 mr-3 text-slate-400" />
+                        <span>{new Date(c.startTimeUnix * 1000).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                      <div className="flex items-center text-slate-300 text-sm">
+                        <Clock className="w-4 h-4 mr-3 text-slate-400" />
+                        <span>{c.duration} minutes</span>
+                      </div>
+                    </div>
                   </div>
 
-                  <h2 className="text-xl font-bold text-white mb-4 line-clamp-2 group-hover:text-indigo-400 transition-colors">
-                    <a href={c.url} target="_blank" rel="noopener noreferrer">
-                      {c.name}
+                  <div className="px-6 py-4 bg-slate-800/40 border-t border-slate-700/50 mt-auto">
+                    <a 
+                      href={c.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center justify-center w-full text-sm font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
+                    >
+                      View Contest
+                      <ExternalLink className="w-4 h-4 ml-2" />
                     </a>
-                  </h2>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center text-slate-300 text-sm">
-                      <Calendar className="w-4 h-4 mr-3 text-slate-400" />
-                      <span>{new Date(c.startTimeUnix * 1000).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-                    <div className="flex items-center text-slate-300 text-sm">
-                      <Clock className="w-4 h-4 mr-3 text-slate-400" />
-                      <span>{c.duration} minutes</span>
-                    </div>
                   </div>
                 </div>
-
-                <div className="px-6 py-4 bg-slate-900/50 border-t border-slate-700 mt-auto">
-                  <a 
-                    href={c.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="flex items-center justify-center w-full text-sm font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
-                  >
-                    View Contest
-                    <ExternalLink className="w-4 h-4 ml-2" />
-                  </a>
-                </div>
-              </div>
-            ))}
+              )})}
             </div>
 
             {/* Pagination Controls */}
-            {Math.ceil(contests.length / ITEMS_PER_PAGE) > 1 && (
+            {Math.ceil((filteredContests ? filteredContests.length : 0) / ITEMS_PER_PAGE) > 1 && (
               <div className="flex justify-center items-center mt-12 space-x-4">
                 <button 
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                   disabled={currentPage === 1}
-                  className={`px-5 py-2 rounded-lg font-medium transition-all duration-300 flex items-center ${currentPage === 1 ? 'bg-slate-800/50 text-slate-500 cursor-not-allowed border border-white/5' : 'bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white shadow-lg shadow-indigo-500/30 border border-indigo-400/30'}`}
+                  className={`px-5 py-2 rounded-lg font-medium transition-all duration-300 flex items-center ${currentPage === 1 ? 'bg-slate-800/50 text-slate-500 cursor-not-allowed border border-white/5' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white shadow-lg shadow-blue-500/20 border border-blue-400/30'}`}
                 >
                   Previous
                 </button>
                 <span className="text-slate-300 font-medium px-4 py-2 bg-slate-900/50 rounded-lg border border-white/10">
-                  Page <span className="text-indigo-400 font-bold">{currentPage}</span> of <span className="text-white font-bold">{Math.ceil(contests.length / ITEMS_PER_PAGE)}</span>
+                  Page <span className="text-blue-400 font-bold">{currentPage}</span> of <span className="text-white font-bold">{Math.ceil(filteredContests.length / ITEMS_PER_PAGE)}</span>
                 </span>
                 <button 
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(contests.length / ITEMS_PER_PAGE)))}
-                  disabled={currentPage === Math.ceil(contests.length / ITEMS_PER_PAGE)}
-                  className={`px-5 py-2 rounded-lg font-medium transition-all duration-300 flex items-center ${currentPage === Math.ceil(contests.length / ITEMS_PER_PAGE) ? 'bg-slate-800/50 text-slate-500 cursor-not-allowed border border-white/5' : 'bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white shadow-lg shadow-indigo-500/30 border border-indigo-400/30'}`}
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredContests.length / ITEMS_PER_PAGE)))}
+                  disabled={currentPage === Math.ceil(filteredContests.length / ITEMS_PER_PAGE)}
+                  className={`px-5 py-2 rounded-lg font-medium transition-all duration-300 flex items-center ${currentPage === Math.ceil(filteredContests.length / ITEMS_PER_PAGE) ? 'bg-slate-800/50 text-slate-500 cursor-not-allowed border border-white/5' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white shadow-lg shadow-blue-500/20 border border-blue-400/30'}`}
                 >
                   Next
                 </button>

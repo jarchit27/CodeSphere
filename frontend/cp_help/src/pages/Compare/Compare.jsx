@@ -231,30 +231,36 @@ const Compare = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-4 max-w-3xl mx-auto">
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                placeholder="First handle"
-                value={user1}
-                onChange={(e) => setUser1(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg bg-slate-800/50 border border-slate-600 text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
-                required
-              />
+            <div className="flex-1 relative search-bar-container !rounded-xl">
+              <div className="search-bar-content w-full h-full flex items-center !p-0">
+                <input
+                  type="text"
+                  placeholder="First handle"
+                  value={user1}
+                  onChange={(e) => setUser1(e.target.value)}
+                  className="search-input !py-3 !px-4"
+                  required
+                />
+              </div>
+              <div className="search-bar-shine"></div>
             </div>
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                placeholder="Second handle"
-                value={user2}
-                onChange={(e) => setUser2(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg bg-slate-800/50 border border-slate-600 text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
-                required
-              />
+            <div className="flex-1 relative search-bar-container !rounded-xl">
+              <div className="search-bar-content w-full h-full flex items-center !p-0">
+                <input
+                  type="text"
+                  placeholder="Second handle"
+                  value={user2}
+                  onChange={(e) => setUser2(e.target.value)}
+                  className="search-input !py-3 !px-4"
+                  required
+                />
+              </div>
+              <div className="search-bar-shine"></div>
             </div>
             <button
               type="submit"
               disabled={loading || !user1.trim() || !user2.trim()}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-lg font-semibold shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white px-8 py-3 rounded-xl font-semibold shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed border border-blue-400/30"
             >
               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
               Compare

@@ -568,23 +568,54 @@ apiV1.delete("/delete-problem/:problemId", authenticateToken, catchAsync(async (
 apiV1.get("/get-all-problems/", authenticateToken, catchAsync(async (req, res) => {
     const { user } = req.user;
 
-    // Pagination parameters (default page 1, limit 12)
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 12;
     const skip = (page - 1) * limit;
+    
+    const { query, platform, difficulty, tag, sortBy, order } = req.query;
 
-    const totalProblems = await Problem.countDocuments({ userId: user._id });
+    const filter = { userId: user._id };
+
+    if (query) {
+        filter.$or = [
+            { questionName: { $regex: query, $options: 'i' } },
+            { notes: { $regex: query, $options: 'i' } }
+        ];
+    }
+    if (platform && platform !== 'All') {
+        filter.platform = platform;
+    }
+    if (difficulty && difficulty !== 'All') {
+        filter.difficulty = difficulty;
+    }
+    if (tag) {
+        filter.tags = { $regex: tag, $options: 'i' };
+    }
+
+    let sortObj = { fetchedAt: -1 }; 
+    if (sortBy) {
+        const sortDirection = order === 'asc' ? 1 : -1;
+        sortObj = { [sortBy]: sortDirection };
+    }
+
+    const totalProblems = await Problem.countDocuments(filter);
     const totalPages = Math.ceil(totalProblems / limit);
 
-    const problems = await Problem.find({ userId: user._id }).skip(skip).limit(limit);
+    const problems = await Problem.find(filter)
+        .sort(sortObj)
+        .skip(skip)
+        .limit(limit);
+
+    const allTags = await Problem.distinct("tags", { userId: user._id });
 
     return res.json({
         error: false,
         problems,
+        allTags,
         currentPage: page,
         totalPages: totalPages === 0 ? 1 : totalPages,
         totalProblems,
-        message: "All Problems successfully",
+        message: "Problems fetched successfully",
     });
 }));
 
@@ -665,8 +696,19 @@ apiV1.get("/validate-handle/:handle", authenticateToken, catchAsync(async (req, 
     }
 }));
 
-// SSE endpoint: pushes real-time sync updates to connected clients
-apiV1.get("/sync-events", authenticateToken, (req, res) => {
+// SSE endpoint: pushes real-time sync updates to connected clients.
+// EventSource API cannot send custom headers, so we accept token as a query param.
+apiV1.get("/sync-events", (req, res) => {
+    const token = req.query.token;
+    if (!token) return res.sendStatus(401);
+
+    try {
+        const jwt = require('jsonwebtoken');
+        jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+    } catch (err) {
+        return res.sendStatus(401);
+    }
+
     res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',

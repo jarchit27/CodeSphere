@@ -24,7 +24,17 @@ export const friendService = {
 
 // Problems Endpoints
 export const problemService = {
-  getAll: (page = 1) => axiosInstance.get(`/get-all-problems/?page=${page}`),
+  getAll: (params = {}) => {
+    const { page = 1, query = '', platform = 'All', difficulty = 'All', tag = '', sortBy = '', order = '' } = params;
+    let url = `/get-all-problems/?page=${page}`;
+    if (query) url += `&query=${encodeURIComponent(query)}`;
+    if (platform && platform !== 'All') url += `&platform=${encodeURIComponent(platform)}`;
+    if (difficulty && difficulty !== 'All') url += `&difficulty=${encodeURIComponent(difficulty)}`;
+    if (tag) url += `&tag=${encodeURIComponent(tag)}`;
+    if (sortBy) url += `&sortBy=${encodeURIComponent(sortBy)}`;
+    if (order) url += `&order=${encodeURIComponent(order)}`;
+    return axiosInstance.get(url);
+  },
   add: (problemData) => axiosInstance.post('/add-problem', problemData),
   delete: (problemId) => axiosInstance.delete(`/delete-problem/${problemId}`),
 };
