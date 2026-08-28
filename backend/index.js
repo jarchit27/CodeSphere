@@ -17,7 +17,10 @@ const catchAsync = (fn) => (req, res, next) => {
 const mongoose = require("mongoose");
 const path = require("path");
 mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log("✅ Successfully connected to MongoDB Atlas!"))
+    .then(() => {
+        console.log("✅ Successfully connected to MongoDB Atlas!");
+        reseedQueueOnStartup();
+    })
     .catch((err) => {
         console.error("❌ FATAL ERROR: Failed to connect to MongoDB Atlas.");
         console.error("This is usually caused by a network issue or an IP whitelist problem.");
@@ -29,6 +32,9 @@ const User = require("./models/user.model");
 const PendingUser = require("./models/pendingUser.model");
 const Friend = require("./models/friend.model");
 const Problem = require("./models/problem.model");
+const CfStats = require("./models/cfStats.model");
+const { enqueue, reseedQueueOnStartup, syncEmitter } = require("./services/syncQueue");
+const { validateCodeforcesHandle } = require("./services/cfSyncService");
 
 const express = require("express");
 const cors = require("cors");
@@ -37,7 +43,7 @@ const axios = require("axios");
 const app = express();
 app.set("trust proxy", 1);
 const jwt = require('jsonwebtoken');
-const {authenticateToken, sendVerificationEmail} = require("./utilities");
+const { authenticateToken, sendVerificationEmail } = require("./utilities");
 const rateLimit = require("express-rate-limit");
 
 const authLimiter = rateLimit({
@@ -51,7 +57,7 @@ const authLimiter = rateLimit({
 app.use(express.json());
 
 app.use(
-    cors({origin: "*",})
+    cors({ origin: "*", })
 );
 
 const apiV1 = express.Router();
@@ -66,43 +72,34 @@ const generalLimiter = rateLimit({
 });
 apiV1.use(generalLimiter);
 
-apiV1.post("/create-account", authLimiter, catchAsync(async(req, res) =>{
+apiV1.post("/create-account", authLimiter, catchAsync(async (req, res) => {
     if (!req.body) {
         return res.status(400).json({ error: true, message: "Invalid request body" });
     }
-    
-    const {fullname , codeforcesHandle ,email, password} = req.body;
 
-    if(!fullname)
-    {
+    const { fullname, codeforcesHandle, email, password } = req.body;
+
+    if (!fullname) {
         return res
-        .status(400)
-        .json({error:true , message: "Full Name is required"});
+            .status(400)
+            .json({ error: true, message: "Full Name is required" });
     }
-    if(!codeforcesHandle)
-    {
-        return res.status(400).json({error:true , message: "Handle is required"})
+    if (!codeforcesHandle) {
+        return res.status(400).json({ error: true, message: "Handle is required" })
     }
-    if(!email)
-    {
-        return res.status(400).json({error:true , message: "Email is required"})
+    if (!email) {
+        return res.status(400).json({ error: true, message: "Email is required" })
     }
-    if(!password)
-    {
-        return res.status(400).json({error:true , message: "Password is required"})
+    if (!password) {
+        return res.status(400).json({ error: true, message: "Password is required" })
     }
 
-    const isUser = await User.findOne({email: email});
+    const isUser = await User.findOne({ email: email });
 
-    if(isUser){
-        return res.status(409).json({error:true, message:"User already exists and is verified"})
+    if (isUser) {
+        return res.status(409).json({ error: true, message: "User already exists and is verified" })
     }
-    
-    // Check if codeforcesHandle already exists in main User collection
-    const isHandle = await User.findOne({codeforcesHandle});
-    if(isHandle){
-        return res.status(409).json({error:true, message:"Codeforces handle is already in use"})
-    }
+
 
     // Cooldown check: prevent spam signups sending unlimited emails
     const existingPending = await PendingUser.findOne({ email });
@@ -132,7 +129,7 @@ apiV1.post("/create-account", authLimiter, catchAsync(async(req, res) =>{
         },
         { upsert: true, new: true }
     );
-    
+
     // Send OTP via email in background (or log if no credentials)
     sendVerificationEmail(email, otp).catch(console.error);
 
@@ -144,40 +141,37 @@ apiV1.post("/create-account", authLimiter, catchAsync(async(req, res) =>{
     })
 }));
 
-apiV1.post("/login" , authLimiter, catchAsync(async(req, res)=>{
+apiV1.post("/login", authLimiter, catchAsync(async (req, res) => {
     if (!req.body) {
         return res.status(400).json({ error: true, message: "Invalid request body" });
     }
 
-    const {email,password} = req.body;
+    const { email, password } = req.body;
 
-    if(!email){
-        return res.status(400).json({error:true , message: "Email is required"})
+    if (!email) {
+        return res.status(400).json({ error: true, message: "Email is required" })
     }
-    if(!password)
-    {
-        return res.status(400).json({error:true , message: "Password is required"})
+    if (!password) {
+        return res.status(400).json({ error: true, message: "Password is required" })
     }
 
-    const userInfo = await User.findOne({email: email});
-    if(!userInfo){
-        return res.status(400).json({error:true , message: "User not found"})
+    const userInfo = await User.findOne({ email: email });
+    if (!userInfo) {
+        return res.status(400).json({ error: true, message: "User not found" })
     }
     const isPasswordValid = await bcrypt.compare(password, userInfo.password);
-    if(userInfo.email == email && isPasswordValid)
-    {
-        const accessToken = jwt.sign({ user: { _id: userInfo._id } }, process.env.ACCESS_TOKEN_SECRET,{expiresIn:"36000m"});
+    if (userInfo.email == email && isPasswordValid) {
+        const accessToken = jwt.sign({ user: { _id: userInfo._id } }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "36000m" });
 
         return res.json({
-            error: false, 
-            message: "Login Successful", 
+            error: false,
+            message: "Login Successful",
             accessToken,
             user: { fullname: userInfo.fullname, codeforcesHandle: userInfo.codeforcesHandle, email: userInfo.email, _id: userInfo._id }
         });
     }
-    else
-    {
-        return res.status(400).json({error:true, message:"Wrong Credentials"});
+    else {
+        return res.status(400).json({ error: true, message: "Wrong Credentials" });
     }
 }));
 
@@ -221,7 +215,7 @@ apiV1.post("/forgot-password", authLimiter, catchAsync(async (req, res) => {
 // --- RESET PASSWORD ---
 apiV1.post("/reset-password", authLimiter, catchAsync(async (req, res) => {
     const { email, otp, newPassword } = req.body;
-    
+
     if (!email || !otp || !newPassword) {
         return res.status(400).json({ error: true, message: "Email, OTP, and new password are required" });
     }
@@ -260,7 +254,7 @@ apiV1.post("/reset-password", authLimiter, catchAsync(async (req, res) => {
     // Valid OTP - Reset Password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashedPassword;
-    
+
     // Clear reset fields
     user.resetOtp = undefined;
     user.resetOtpExpires = undefined;
@@ -274,7 +268,7 @@ apiV1.post("/reset-password", authLimiter, catchAsync(async (req, res) => {
     });
 }));
 
-apiV1.post("/verify-email", authLimiter, catchAsync(async(req, res) => {
+apiV1.post("/verify-email", authLimiter, catchAsync(async (req, res) => {
     const { email, otp } = req.body;
     if (!email || !otp) {
         return res.status(400).json({ error: true, message: "Email and OTP are required" });
@@ -302,14 +296,17 @@ apiV1.post("/verify-email", authLimiter, catchAsync(async(req, res) => {
     }
 
     // OTP is valid — atomically delete PendingUser so a duplicate request gets nothing
-    await PendingUser.deleteOne({ email });
+    const deletedPendingUser = await PendingUser.findOneAndDelete({ email });
+    if (!deletedPendingUser) {
+        return res.status(400).json({ error: true, message: "Request already processed." });
+    }
 
     // Move to main User collection
     const user = new User({
-        fullname: pendingUser.fullname,
-        codeforcesHandle: pendingUser.codeforcesHandle,
-        email: pendingUser.email,
-        password: pendingUser.password, // Already hashed
+        fullname: deletedPendingUser.fullname,
+        codeforcesHandle: deletedPendingUser.codeforcesHandle,
+        email: deletedPendingUser.email,
+        password: deletedPendingUser.password, // Already hashed
     });
     await user.save();
 
@@ -323,7 +320,7 @@ apiV1.post("/verify-email", authLimiter, catchAsync(async(req, res) => {
     });
 }));
 
-apiV1.post("/resend-otp", authLimiter, catchAsync(async(req, res) => {
+apiV1.post("/resend-otp", authLimiter, catchAsync(async (req, res) => {
     const { email } = req.body;
     if (!email) {
         return res.status(400).json({ error: true, message: "Email is required" });
@@ -351,25 +348,25 @@ apiV1.post("/resend-otp", authLimiter, catchAsync(async(req, res) => {
     return res.json({ error: false, message: "A new OTP has been sent." });
 }));
 
-apiV1.get("/get-user" ,authenticateToken, catchAsync(async(req, res)=>{
-    const {user} = req.user;
-    const isUser = await User.findOne({_id: user._id});
-    if(!isUser){
+apiV1.get("/get-user", authenticateToken, catchAsync(async (req, res) => {
+    const { user } = req.user;
+    const isUser = await User.findOne({ _id: user._id });
+    if (!isUser) {
         return res.status(401).json({ error: true, message: "User not found" });
     }
-    return res.status(200).json({user:{ fullname: isUser.fullname, codeforcesHandle: isUser.codeforcesHandle ,email: isUser.email, "_id" : isUser._id}, message:""});
+    return res.status(200).json({ user: { fullname: isUser.fullname, codeforcesHandle: isUser.codeforcesHandle, email: isUser.email, "_id": isUser._id }, message: "" });
 }));
 
-apiV1.post("/add-friend" , authenticateToken , catchAsync(async(req, res)=>{
+apiV1.post("/add-friend", authenticateToken, catchAsync(async (req, res) => {
 
-    const {handle, name} = req.body;
+    const { handle, name } = req.body;
     const { user } = req.user;
 
-    if(!handle){
-        return res.status(400).json({error:true , message: "Handle is required"})
+    if (!handle) {
+        return res.status(400).json({ error: true, message: "Handle is required" })
     }
-    if(!name){
-        return res.status(400).json({error:true , message: "Friend is required"})
+    if (!name) {
+        return res.status(400).json({ error: true, message: "Friend is required" })
     }
 
     const existingFriend = await Friend.findOne({ handle, userId: user._id });
@@ -378,105 +375,160 @@ apiV1.post("/add-friend" , authenticateToken , catchAsync(async(req, res)=>{
     }
 
     const friend = new Friend({
-        handle, 
-        name, 
+        handle,
+        name,
         userId: user._id,
     });
     await friend.save();
+
+    // Trigger background sync
+    enqueue(handle).catch(console.error);
+
     return res.json({
         error: false,
         friend,
-        message:"Friend added successfully",
+        message: "Friend added successfully",
     })
 }));
 
-apiV1.put("/edit-friend/:friendId" , authenticateToken , catchAsync(async(req, res)=>{
+apiV1.put("/edit-friend/:friendId", authenticateToken, catchAsync(async (req, res) => {
 
     const friendId = req.params.friendId;
-    const {handle, name} = req.body;
-    const {user} = req.user;
+    const { name } = req.body;
+    const { user } = req.user;
 
-    if(!handle && !name )
-        return res.status(401).json({error:true, message:"Error not found Friend"})
+    if (!name)
+        return res.status(400).json({ error: true, message: "Display name is required" })
 
-    
-    const friend = await Friend.findOne({_id:friendId, userId: user._id})
 
-    if(!friend)
-        return res.status(404).json({error:true, message:"Friend not found"})
+    const friend = await Friend.findOne({ _id: friendId, userId: user._id })
 
-    if(handle) friend.handle = handle;
-    if(name) friend.name = name;
+    if (!friend)
+        return res.status(404).json({ error: true, message: "Friend not found" })
+
+    friend.name = name;
 
     await friend.save();
     return res.json({
         error: false,
         friend,
-        message:"friend added successfully",
+        message: "Friend updated successfully",
     })
 }));
 
-apiV1.delete("/delete-friend/:friendId" , authenticateToken , catchAsync(async(req, res)=>{
+apiV1.delete("/delete-friend/:friendId", authenticateToken, catchAsync(async (req, res) => {
     const friendId = req.params.friendId;
-    const {user} = req.user;
+    const { user } = req.user;
 
-    const friend = await Friend.findOne({_id:friendId, userId: user._id});
+    const friend = await Friend.findOne({ _id: friendId, userId: user._id });
 
-    if(!friend)
-        return res.status(404).json({error:true, message:"Friend not found"})
+    if (!friend)
+        return res.status(404).json({ error: true, message: "Friend not found" })
 
-    await Friend.deleteOne({_id: friendId, userId: user._id});
+    await Friend.deleteOne({ _id: friendId, userId: user._id });
     return res.json({
         error: false,
-        message:"Friend deleted successfully"
+        message: "Friend deleted successfully"
     })
 }));
 
-apiV1.get("/get-all-friends/" , authenticateToken , catchAsync(async(req, res)=>{
-    const {user} = req.user;
-    
+apiV1.get("/get-all-friends/", authenticateToken, catchAsync(async (req, res) => {
+    const { user } = req.user;
+
     // Pagination parameters (default page 1, limit 12)
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 12;
     const skip = (page - 1) * limit;
 
-    const totalFriends = await Friend.countDocuments({userId: user._id});
+    const sortBy = req.query.sortBy || 'name';
+    const order = req.query.order === 'desc' ? -1 : 1;
+
+    let sortStage = { name: order }; // default
+    if (sortBy === 'rating') sortStage = { 'stats.rating': order };
+    if (sortBy === 'highestRating') sortStage = { 'stats.maxRating': order };
+    if (sortBy === 'contests') sortStage = { 'stats.contestsCount': order };
+    if (sortBy === 'problems') sortStage = { 'stats.solvedCount': order };
+    if (sortBy === 'name') sortStage = { 'name': order };
+
+    const totalFriends = await Friend.countDocuments({ userId: user._id });
     const totalPages = Math.ceil(totalFriends / limit);
-    
-    const friends = await Friend.find({userId: user._id}).skip(skip).limit(limit);
-    
+
+    const friendsPipeline = await Friend.aggregate([
+        { $match: { userId: user._id.toString() } },
+        {
+            $lookup: {
+                from: 'cfstats', // MongoDB automatically pluralizes and lowercases model names
+                localField: 'handle',
+                foreignField: 'handle',
+                as: 'stats'
+            }
+        },
+        { $unwind: { path: '$stats', preserveNullAndEmptyArrays: true } },
+        { $sort: sortStage },
+        { $skip: skip },
+        { $limit: limit }
+    ]);
+
+    const enrichedFriends = friendsPipeline.map(f => {
+        const stats = f.stats || {};
+        return {
+            _id: f._id,
+            handle: f.handle,
+            name: f.name,
+            solvedCount: stats.solvedCount || 0,
+            contestsCount: stats.contestsCount || 0,
+            rating: stats.rating || 0,
+            maxRating: stats.maxRating || 0,
+            rank: stats.rank || '',
+            maxRank: stats.maxRank || '',
+            country: stats.country || '',
+            city: stats.city || '',
+            organization: stats.organization || '',
+            contribution: stats.contribution || 0,
+            lastSyncedAt: stats.lastSyncedAt || null
+        };
+    });
+
+    // Lazy Trigger: Enqueue stale handles
+    const STALE_MS = 2 * 60 * 60 * 1000;
+    enrichedFriends.forEach(f => {
+        if (!f.lastSyncedAt || (Date.now() - new Date(f.lastSyncedAt).getTime() > STALE_MS)) {
+            enqueue(f.handle).catch(console.error);
+        }
+    });
+
     return res.json({
         error: false,
-        friends,
+        friends: enrichedFriends,
         currentPage: page,
         totalPages: totalPages === 0 ? 1 : totalPages,
         totalFriends,
-        message:"All friends successfully",
+        message: "All friends successfully",
     });
 }));
 
-apiV1.post("/add-problem" , authenticateToken , catchAsync(async(req, res)=>{
+apiV1.post("/add-problem", authenticateToken, catchAsync(async (req, res) => {
 
-    const {questionName,platform,difficulty,questionLink,notes ,tags} = req.body;
+    const { questionName, platform, difficulty, questionLink, notes, tags } = req.body;
     const { user } = req.user;
 
-    if(!questionName){
-        return res.status(400).json({error:true , message: "Question Name is required"})
+    if (!questionName) {
+        return res.status(400).json({ error: true, message: "Question Name is required" })
     }
-    if(!platform){
-        return res.status(400).json({error:true , message: "Platform is required"})
-    }
-
-    if(!difficulty){
-        return res.status(400).json({error:true , message: "Difficulty Level is required"})
+    if (!platform) {
+        return res.status(400).json({ error: true, message: "Platform is required" })
     }
 
-    if(!questionLink){
-        return res.status(400).json({error:true , message: "Link of Question is required"})
+    if (!difficulty) {
+        return res.status(400).json({ error: true, message: "Difficulty Level is required" })
     }
 
-    if(!notes){
-        return res.status(400).json({error:true , message: "Note is required"})
+    if (!questionLink) {
+        return res.status(400).json({ error: true, message: "Link of Question is required" })
+    }
+
+    if (!notes) {
+        return res.status(400).json({ error: true, message: "Note is required" })
     }
 
     const existingProblem = await Problem.findOne({ questionLink, userId: user._id });
@@ -485,7 +537,7 @@ apiV1.post("/add-problem" , authenticateToken , catchAsync(async(req, res)=>{
     }
 
     const problem = new Problem({
-        questionName,platform,difficulty,questionLink,notes ,
+        questionName, platform, difficulty, questionLink, notes,
         tags: tags || [],
         userId: user._id,
     });
@@ -493,70 +545,158 @@ apiV1.post("/add-problem" , authenticateToken , catchAsync(async(req, res)=>{
     return res.json({
         error: false,
         problem,
-        message:"Problem added successfully",
+        message: "Problem added successfully",
     })
 }));
 
-apiV1.delete("/delete-problem/:problemId" , authenticateToken , catchAsync(async(req, res)=>{
+apiV1.delete("/delete-problem/:problemId", authenticateToken, catchAsync(async (req, res) => {
     const problemId = req.params.problemId;
-    const {user} = req.user;
+    const { user } = req.user;
 
-    const problem = await Problem.findOne({_id:problemId, userId: user._id});
+    const problem = await Problem.findOne({ _id: problemId, userId: user._id });
 
-    if(!problem)
-        return res.status(404).json({error:true, message:"Problem not found"})
+    if (!problem)
+        return res.status(404).json({ error: true, message: "Problem not found" })
 
-    await Problem.deleteOne({_id: problemId, userId: user._id});
+    await Problem.deleteOne({ _id: problemId, userId: user._id });
     return res.json({
         error: false,
-        message:"Problem deleted successfully"
+        message: "Problem deleted successfully"
     })
 }));
 
-apiV1.get("/get-all-problems/" , authenticateToken , catchAsync(async(req, res)=>{
-    const {user} = req.user;
-    
+apiV1.get("/get-all-problems/", authenticateToken, catchAsync(async (req, res) => {
+    const { user } = req.user;
+
     // Pagination parameters (default page 1, limit 12)
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 12;
     const skip = (page - 1) * limit;
 
-    const totalProblems = await Problem.countDocuments({userId: user._id});
+    const totalProblems = await Problem.countDocuments({ userId: user._id });
     const totalPages = Math.ceil(totalProblems / limit);
-    
-    const problems = await Problem.find({userId: user._id}).skip(skip).limit(limit);
-    
+
+    const problems = await Problem.find({ userId: user._id }).skip(skip).limit(limit);
+
     return res.json({
         error: false,
         problems,
         currentPage: page,
         totalPages: totalPages === 0 ? 1 : totalPages,
         totalProblems,
-        message:"All Problems successfully",
+        message: "All Problems successfully",
     });
 }));
 
-apiV1.get("/search-friend/", authenticateToken, catchAsync(async(req,res)=>{
-    const {user} = req.user;
-    const {query} = req.query;
-    if(!query){
-        return res.status(400).json({error:true , message:"query is required"})
-    } 
+apiV1.get("/search-friend/", authenticateToken, catchAsync(async (req, res) => {
+    const { user } = req.user;
+    const { query } = req.query;
+    if (!query) {
+        return res.status(400).json({ error: true, message: "query is required" })
+    }
 
-    const matchingFriends = await Friend.find({
-        userId: user._id,
-        $or:[
-            {handle : {$regex : new RegExp(query, "i")}},
-            {name :{$regex : new RegExp(query, "i")}},
-        ],
+    const matchingFriendsPipeline = await Friend.aggregate([
+        {
+            $match: {
+                userId: user._id.toString(),
+                $or: [
+                    { handle: { $regex: new RegExp(query, "i") } },
+                    { name: { $regex: new RegExp(query, "i") } },
+                ]
+            }
+        },
+        {
+            $lookup: {
+                from: 'cfstats',
+                localField: 'handle',
+                foreignField: 'handle',
+                as: 'stats'
+            }
+        },
+        { $unwind: { path: '$stats', preserveNullAndEmptyArrays: true } },
+        { $sort: { name: 1 } }
+    ]);
+
+    const enrichedFriends = matchingFriendsPipeline.map(f => {
+        const stats = f.stats || {};
+        return {
+            _id: f._id,
+            handle: f.handle,
+            name: f.name,
+            solvedCount: stats.solvedCount || 0,
+            contestsCount: stats.contestsCount || 0,
+            rating: stats.rating || 0,
+            maxRating: stats.maxRating || 0,
+            rank: stats.rank || '',
+            maxRank: stats.maxRank || '',
+            country: stats.country || '',
+            city: stats.city || '',
+            organization: stats.organization || '',
+            contribution: stats.contribution || 0,
+            lastSyncedAt: stats.lastSyncedAt || null
+        };
+    });
+
+    // Lazy Trigger: Enqueue stale handles
+    const STALE_MS = 2 * 60 * 60 * 1000;
+    enrichedFriends.forEach(f => {
+        if (!f.lastSyncedAt || (Date.now() - new Date(f.lastSyncedAt).getTime() > STALE_MS)) {
+            enqueue(f.handle).catch(console.error);
+        }
     });
 
     return res.json({
         error: false,
-        friends: matchingFriends ,
-        message:"Friends search query retrieved successfully",
+        friends: enrichedFriends,
+        message: "Friends search query retrieved successfully",
     });
 }));
+
+apiV1.get("/validate-handle/:handle", authenticateToken, catchAsync(async (req, res) => {
+    const handle = req.params.handle;
+    if (!handle) {
+        return res.status(400).json({ error: true, message: "Handle is required" });
+    }
+    const isValid = await validateCodeforcesHandle(handle);
+    if (isValid) {
+        return res.json({ error: false, message: "Handle is valid" });
+    } else {
+        return res.status(404).json({ error: true, message: "Handle not found on Codeforces" });
+    }
+}));
+
+// SSE endpoint: pushes real-time sync updates to connected clients
+apiV1.get("/sync-events", authenticateToken, (req, res) => {
+    res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+    });
+
+    // Send a heartbeat every 30s to keep the connection alive
+    const heartbeat = setInterval(() => {
+        res.write(': heartbeat\n\n');
+    }, 30000);
+
+    // Listen for sync completions from the queue
+    const onSynced = (data) => {
+        res.write(`data: ${JSON.stringify({ type: 'synced', handle: data.handle })}\n\n`);
+    };
+
+    const onError = (data) => {
+        res.write(`data: ${JSON.stringify({ type: 'error', handle: data.handle, error: data.error })}\n\n`);
+    };
+
+    syncEmitter.on('synced', onSynced);
+    syncEmitter.on('error', onError);
+
+    // Cleanup when client disconnects
+    req.on('close', () => {
+        clearInterval(heartbeat);
+        syncEmitter.off('synced', onSynced);
+        syncEmitter.off('error', onError);
+    });
+});
 
 app.use("/api/v1", apiV1);
 

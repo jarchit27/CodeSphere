@@ -3,10 +3,10 @@ const Schema = mongoose.Schema;
 
 const userSchema = new Schema({
     fullname:{type: String},
-    codeforcesHandle:{type: String, unique: true, index: true},
+    codeforcesHandle: { type: String, index: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    createdOn: { type: Date, default: new Date().getTime() },
+    createdOn: { type: Date, default: Date.now },
     resetOtp: { type: String, default: null },
     resetOtpExpires: { type: Date, default: null },
     resetOtpAttempts: { type: Number, default: 0 },

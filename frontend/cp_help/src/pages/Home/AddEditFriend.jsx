@@ -58,22 +58,20 @@ const AddEditFriend = ({ friendData, type, getAllFriends, onClose }) => {
     setIsLoading(true);
     setError("");
 
-    try {
-      const validateRes = await axios.get(`https://codeforces.com/api/user.info?handles=${handle}`);
-      if (validateRes.data.status !== "OK") {
-        setError("Invalid Codeforces handle");
-        setIsLoading(false);
-        return;
-      }
-    } catch (error) {
-      setError("Invalid handle error");
-      setIsLoading(false);
-      return;
-    }
-
     if (type === "edit") {
       editFriend();
     } else {
+      try {
+        await friendService.validateHandle(handle);
+      } catch (error) {
+        if (error.response?.status === 404) {
+          setError("Invalid Codeforces handle");
+        } else {
+          setError("Error validating handle");
+        }
+        setIsLoading(false);
+        return;
+      }
       addNewFriend();
     }
   };
@@ -113,10 +111,11 @@ const AddEditFriend = ({ friendData, type, getAllFriends, onClose }) => {
             </label>
             <input
               type="text"
-              className="w-full h-12 px-4 rounded-xl border border-slate-600 bg-slate-800/50 focus:bg-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 outline-none transition-all text-white placeholder-slate-500"
+              className={`w-full h-12 px-4 rounded-xl border border-slate-600 bg-slate-800/50 focus:bg-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 outline-none transition-all text-white placeholder-slate-500 ${type === 'edit' ? 'opacity-50 cursor-not-allowed' : ''}`}
               placeholder="e.g. tourist"
               value={handle}
               onChange={(e) => setHandle(e.target.value)}
+              disabled={type === 'edit'}
             />
           </div>
 

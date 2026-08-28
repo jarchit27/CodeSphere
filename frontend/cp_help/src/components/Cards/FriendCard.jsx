@@ -1,178 +1,110 @@
 import { MdCreate, MdDelete, MdLocationOn, MdEmojiEvents, MdCode } from 'react-icons/md';
 import { getBgColorByRating, getColorByRating } from '../../utils/helper';
 import './FriendCard.css';
-import { useEffect, useRef, useState } from 'react';
-import { cfFetcher } from '../../utils/cfFetcher';
 
 const FriendCard = ({
-  handle,
-  name,
-  date,
-  userData,
-  loading,
+  friend,
   onEdit,
   onDelete,
   onViewAnalysis
 }) => {
-  
+  const {
+    handle, name, rating, maxRating, rank, contribution,
+    contestsCount, solvedCount, country, city, organization, friendOfCount
+  } = friend;
+
   // Helper function to get background gradient based on rating
-  const getCardBackground = (rating) => {
-    if (!rating || rating < 1200) {
-      // Gray/Default
-      return 'linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 50%, #0a0a0a 100%)';
-    } else if (rating < 1400) {
-      // Green
-      return 'linear-gradient(135deg, #1a4d1a 0%, #0d2d0d 50%, #051405 100%)';
-    } else if (rating < 1600) {
-      // Cyan
-      return 'linear-gradient(135deg, #1a4d4d 0%, #0d2d2d 50%, #051414 100%)';
-    } else if (rating < 1900) {
-      // Blue
-      return 'linear-gradient(135deg, #1a1a4d 0%, #0d0d2d 50%, #050514 100%)';
-    } else if (rating < 2100) {
-      // Purple
-      return 'linear-gradient(135deg, #4d1a4d 0%, #2d0d2d 50%, #140514 100%)';
-    } else if (rating < 2400) {
-      // Orange
-      return 'linear-gradient(135deg, #4d2d1a 0%, #2d1a0d 50%, #140a05 100%)';
-    } else {
-      // Red
-      return 'linear-gradient(135deg, #4d1a1a 0%, #2d0d0d 50%, #140505 100%)';
-    }
+  const getCardBackground = (r) => {
+    if (!r || r < 1200) return 'linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 50%, #0a0a0a 100%)';
+    if (r < 1400) return 'linear-gradient(135deg, #1a4d1a 0%, #0d2d0d 50%, #051405 100%)';
+    if (r < 1600) return 'linear-gradient(135deg, #1a4d4d 0%, #0d2d2d 50%, #051414 100%)';
+    if (r < 1900) return 'linear-gradient(135deg, #1a1a4d 0%, #0d0d2d 50%, #050514 100%)';
+    if (r < 2100) return 'linear-gradient(135deg, #4d1a4d 0%, #2d0d2d 50%, #140514 100%)';
+    if (r < 2400) return 'linear-gradient(135deg, #4d2d1a 0%, #2d1a0d 50%, #140a05 100%)';
+    return 'linear-gradient(135deg, #4d1a1a 0%, #2d0d0d 50%, #140505 100%)';
   };
 
-  const [stats, setStats] = useState({ solvedCount: undefined, contestsCount: undefined });
-  const [loadingStats, setLoadingStats] = useState(true);
-  const cardRef = useRef(null);
-
-  // Reset stats if the handle changes (e.g. when editing a friend)
-  useEffect(() => {
-    setStats({ solvedCount: undefined, contestsCount: undefined });
-    setLoadingStats(true);
-  }, [handle]);
-
-  useEffect(() => {
-    // Only fetch if stats are undefined
-    if (stats.solvedCount !== undefined) return;
-
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) {
-        observer.disconnect();
-        
-        cfFetcher.getStats(handle)
-          .then(res => {
-            if (res.data && res.data.stats) {
-              setStats(res.data.stats);
-            }
-          })
-          .catch(err => console.error("Failed to load stats for", handle))
-          .finally(() => setLoadingStats(false));
-      }
-    }, { threshold: 0.1 });
-
-    if (cardRef.current) {
-      observer.observe(cardRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, [handle, stats.solvedCount, loading, userData]);
-
-  const ratingColor = getColorByRating(userData?.rating || 0);
-  const maxRatingColor = getColorByRating(userData?.maxRating || 0);
-  const cardBackground = getCardBackground(userData?.rating || 0);
+  const ratingColor = getColorByRating(rating || 0);
+  const maxRatingColor = getColorByRating(maxRating || 0);
+  const cardBackground = getCardBackground(rating || 0);
+  const hasStats = rating > 0 || solvedCount > 0;
 
   return (
     <div 
-      ref={cardRef}
       className="rounded-xl shadow-xl hover:shadow-2xl transition-all duration-500 flex flex-col h-full relative border border-white/10"
       style={{ background: cardBackground }}
     >
-      {/* Header */}
       <div className="metallic-header p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div>
-              <h3 className="text-lg font-bold text-white">
-                {name}
-              </h3>
+              <h3 className="text-lg font-bold text-white">{name}</h3>
               <p className="text-xs font-mono text-gray-300">@{handle}</p>
             </div>
           </div>
           <div className={`text-2xl font-bold ${ratingColor}`}>
-            {!userData ? <span className="animate-pulse">...</span> : (userData.rating || 0)}
+            {!hasStats && !rating ? <span className="text-gray-400 text-sm italic">Syncing...</span> : (rating || 0)}
           </div>
         </div>
       </div>
 
-      {/* Body */}
       <div className="p-4 space-y-3 flex-grow">
-        {/* Ranks */}
         <div className="grid grid-cols-2 gap-2">
           <div className="metallic-stat rounded-lg p-3 text-center">
             <p className="text-xs text-gray-300 uppercase font-semibold mb-1">Rank</p>
             <p className={`font-bold text-sm ${ratingColor}`}>
-              {!userData ? <span className="animate-pulse">...</span> : (userData.rank || "Unrated")}
+              {rank || "Unrated"}
             </p>
           </div>
           <div className="metallic-stat rounded-lg p-3 text-center">
             <p className="text-xs text-gray-300 uppercase font-semibold mb-1">Max Rating</p>
             <p className={`font-bold text-sm ${maxRatingColor}`}>
-              {!userData ? <span className="animate-pulse">...</span> : (userData.maxRating || "Unrated")}
+              {maxRating || "Unrated"}
             </p>
           </div>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-3 gap-2">
           <div className="metallic-stat rounded-lg p-2 text-center">
             <p className="text-xs text-gray-300 uppercase font-semibold">Contrib</p>
-            <p className={`font-bold text-sm ${!userData ? 'text-gray-400' : (userData.contribution || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {!userData ? <span className="animate-pulse">...</span> : (userData.contribution || 0)}
+            <p className={`font-bold text-sm ${(contribution || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              {contribution || 0}
             </p>
           </div>
           <div className="metallic-stat rounded-lg p-2 text-center">
             <MdEmojiEvents className="text-yellow-400 mx-auto mb-1" />
             <p className="text-xs text-gray-300 uppercase font-semibold">Contests</p>
-            <p className="font-bold text-sm text-white">
-              {loadingStats ? <span className="animate-pulse">...</span> : (stats.contestsCount !== undefined ? stats.contestsCount : '-')}
-            </p>
+            <p className="font-bold text-sm text-white">{contestsCount !== undefined ? contestsCount : '-'}</p>
           </div>
           <div className="metallic-stat rounded-lg p-2 text-center">
             <MdCode className="text-blue-400 mx-auto mb-1" />
             <p className="text-xs text-gray-300 uppercase font-semibold">Solved</p>
-            <p className="font-bold text-sm text-white">
-              {loadingStats ? <span className="animate-pulse">...</span> : (stats.solvedCount !== undefined ? stats.solvedCount : '-')}
-            </p>
+            <p className="font-bold text-sm text-white">{solvedCount !== undefined ? solvedCount : '-'}</p>
           </div>
         </div>
 
-        {/* Info */}
         <div className="space-y-1 text-sm">
-          {userData && (userData.country || userData.city) && (
+          {(country || city) && (
             <div className="flex items-center text-gray-300">
               <MdLocationOn className="mr-1 text-gray-400" />
               <p className="truncate">
-                {userData.city ? `${userData.city}, ` : ""}
-                {userData.country}
+                {city ? `${city}, ` : ""}{country}
               </p>
             </div>
           )}
-          
-          {userData && userData.organization && (
+          {organization && (
             <p className="text-gray-300 truncate text-sm">
-              <span className="font-medium">Org:</span> {userData.organization}
+              <span className="font-medium">Org:</span> {organization}
             </p>
           )}
-          
-          {userData && userData.friendOfCount && (
+          {friendOfCount > 0 && (
             <p className="text-gray-300 text-sm">
-              <span className="font-medium">Friends:</span> {userData.friendOfCount}
+              <span className="font-medium">Friends:</span> {friendOfCount}
             </p>
           )}
         </div>
       </div>
 
-      {/* Footer */}
       <div className="space-footer px-4 py-3 mt-auto">
         <div className="flex items-center justify-between">
           <button 

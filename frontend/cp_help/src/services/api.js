@@ -17,9 +17,9 @@ export const friendService = {
   add: (data) => axiosInstance.post('/add-friend', data),
   edit: (id, data) => axiosInstance.put(`/edit-friend/${id}`, data),
   delete: (id) => axiosInstance.delete(`/delete-friend/${id}`),
-  getAll: (page = 1) => axiosInstance.get(`/get-all-friends/?page=${page}`),
+  getAll: (page = 1, sortBy = 'name', order = 'asc') => axiosInstance.get(`/get-all-friends/?page=${page}&sortBy=${sortBy}&order=${order}`),
   search: (query) => axiosInstance.get(`/search-friend/?query=${query}`),
-  getStats: (handle) => axiosInstance.get(`/friend-stats/${handle}`)
+  validateHandle: (handle) => axiosInstance.get(`/validate-handle/${handle}`)
 };
 
 // Problems Endpoints
