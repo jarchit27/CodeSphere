@@ -45,6 +45,12 @@ const problemSchema = new Schema({
   },
 });
 
+// Text index removed - reverting to regex search for partial matching
+
+
+// Compound indexes for optimal dropdown filtering
+problemSchema.index({ userId: 1, platform: 1, difficulty: 1 });
+
 // Prevent race conditions where double-clicking "Add" creates duplicate problems
 problemSchema.index({ userId: 1, questionLink: 1 }, { unique: true });
 

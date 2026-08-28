@@ -1,12 +1,12 @@
 const jwt = require('jsonwebtoken')
-function authenticateToken(req, res,next){
+function authenticateToken(req, res, next) {
     const authHeader = req.headers["authorization"];
     const token = (authHeader && authHeader.split(" ")[1]) || req.query.token;
 
-    if(!token ) return res.sendStatus(401);
+    if (!token) return res.sendStatus(401);
 
-    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user)=>{
-        if(err) return res.sendStatus(401);
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
+        if (err) return res.sendStatus(401);
         req.user = user;
         next();
     });
@@ -14,7 +14,7 @@ function authenticateToken(req, res,next){
 
 const nodemailer = require('nodemailer');
 const dns = require('dns');
-dns.setDefaultResultOrder('ipv4first');
+// dns.setDefaultResultOrder('ipv4first');
 
 const sendVerificationEmail = async (email, otp, context = "signup") => {
     // In production, these should be in .env. We fallback to console log if missing.
@@ -32,7 +32,7 @@ const sendVerificationEmail = async (email, otp, context = "signup") => {
         port: 465,
         secure: true,
         // Force IPv4 because Render's IPv6 outbound routing is broken
-        family: 4, 
+        family: 4,
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS
@@ -42,7 +42,7 @@ const sendVerificationEmail = async (email, otp, context = "signup") => {
     const isReset = context === "reset";
     const subject = isReset ? 'Reset your CodeSphere Password' : 'Verify your CodeSphere Account';
     const headerText = isReset ? 'Password Reset Request' : 'Welcome to CodeSphere!';
-    const bodyText = isReset 
+    const bodyText = isReset
         ? 'We received a request to reset your password. Please enter the following 6-digit code to proceed:'
         : 'Thank you for signing up. To complete your registration, please enter the verification code below:';
     const ignoreText = isReset
