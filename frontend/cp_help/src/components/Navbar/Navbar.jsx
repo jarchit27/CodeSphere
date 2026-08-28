@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ProfileInfo from '../Cards/ProfileInfo';
 import SearchBar from '../SearchBar/SearchBar';
@@ -11,6 +11,21 @@ const Navbar = ({ userInfo, showSearchBar, onSearchFriend, handleClearSearch }) 
   const navigate = useNavigate();
   const location = useLocation();
   const { logout } = useAuth(); // If AuthContext exports logout
+
+  useEffect(() => {
+    if (!showSearchBar) return;
+
+    const delayDebounceFn = setTimeout(() => {
+      if (searchQuery.trim()) {
+        onSearchFriend(searchQuery);
+      } else if (searchQuery === '') {
+        // If they backspaced everything, reset the list
+        handleClearSearch();
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]); // Run every time the user types
 
   const onLogout = () => {
     logout(); // Clear AuthContext state properly
