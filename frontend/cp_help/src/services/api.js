@@ -30,7 +30,10 @@ const getProblemCache = () => {
   try {
     const data = localStorage.getItem(PROBLEM_CACHE_KEY);
     return data ? JSON.parse(data) : {};
-  } catch (e) { return {}; }
+  } catch (err) { 
+    console.error('Problem cache read error:', err);
+    return {}; 
+  }
 };
 
 const setProblemCache = (key, data) => {
@@ -38,7 +41,9 @@ const setProblemCache = (key, data) => {
     const cache = getProblemCache();
     cache[key] = { data, timestamp: Date.now() };
     localStorage.setItem(PROBLEM_CACHE_KEY, JSON.stringify(cache));
-  } catch (e) {}
+  } catch (err) {
+    console.error('Problem cache write error:', err);
+  }
 };
 
 const clearProblemCache = () => {
@@ -97,7 +102,9 @@ export const contestService = {
           return { data: cached.data };
         }
       }
-    } catch (e) {}
+    } catch (err) {
+      console.error('Contest cache read error:', err);
+    }
 
     const res = await axios.get('https://api.digitomize.com/contests');
     try {
@@ -105,7 +112,9 @@ export const contestService = {
         data: res.data,
         timestamp: Date.now()
       }));
-    } catch (e) {}
+    } catch (err) {
+      console.error('Contest cache write error:', err);
+    }
     
     return res;
   },

@@ -1,5 +1,5 @@
 import { MdCreate, MdDelete, MdLocationOn, MdEmojiEvents, MdCode } from 'react-icons/md';
-import { getBgColorByRating, getColorByRating } from '../../utils/helper';
+import { getColorByRating } from '../../utils/helper';
 import './FriendCard.css';
 
 const FriendCard = ({

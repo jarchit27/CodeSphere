@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Navbar from '../../components/Navbar/Navbar';
 import FriendCard from '../../components/Cards/FriendCard';
 import { MdAdd, MdSort } from 'react-icons/md';
@@ -25,6 +25,8 @@ const Home = () => {
   const [sortBy, setSortBy] = useState('name');
   const [order, setOrder] = useState('asc');
   const eventSourceRef = useRef(null);
+  const fetchIdRef = useRef(0);
+  const sseRefreshRef = useRef({ currentPage, sortBy, order, getAllFriends: () => {} });
 
   const navigate = useNavigate();
   const { user: userInfo } = useAuth();
@@ -36,6 +38,7 @@ const Home = () => {
   const handleDelete = async (friendDetails) => {
     const friendId = friendDetails._id;
     setAllFriends(prev => prev.filter(f => f._id !== friendId));
+    setTotalFriendsCount(prev => Math.max(0, prev - 1));
 
     try {
       const response = await friendService.delete(friendId);
@@ -48,9 +51,11 @@ const Home = () => {
     }
   };
 
-  const getAllFriends = async (page = 1, currentSortBy = sortBy, currentOrder = order) => {
+  const getAllFriends = useCallback(async (page = 1, currentSortBy = sortBy, currentOrder = order) => {
+    const currentFetchId = ++fetchIdRef.current;
     try {
       const response = await friendService.getAll(page, currentSortBy, currentOrder);
+      if (currentFetchId !== fetchIdRef.current) return; // Ignore stale response
       if (response.data?.friends) {
         setAllFriends(response.data.friends);
         setCurrentPage(response.data.currentPage || 1);
@@ -58,30 +63,39 @@ const Home = () => {
         setTotalFriendsCount(response.data.totalFriends || response.data.friends.length);
       }
     } catch (error) {
+      if (currentFetchId !== fetchIdRef.current) return;
       console.error("Failed to fetch friends:", error);
     }
-  };
+  }, [sortBy, order]);
 
-  const onSearchFriend = async (query) => {
+  const onSearchFriend = useCallback(async (query) => {
+    const currentFetchId = ++fetchIdRef.current;
     try {
       const response = await friendService.search(query);
+      if (currentFetchId !== fetchIdRef.current) return; // Ignore stale response
       if (response.data?.friends) {
         setIsSearch(true);
         setAllFriends(response.data.friends);
       }
     } catch (error) {
+      if (currentFetchId !== fetchIdRef.current) return;
       console.error("Search failed:", error);
     }
-  };
+  }, []);
 
-  const handleClearSearch = () => {
+  const handleClearSearch = useCallback(() => {
     setIsSearch(false);
     getAllFriends(1, sortBy, order);
-  };
+  }, [getAllFriends, sortBy, order]);
 
   useEffect(() => {
     getAllFriends(1, sortBy, order);
-  }, [sortBy, order]);
+  }, [sortBy, order, getAllFriends]);
+
+  // Keep a stable ref to the latest state so the SSE connection doesn't have to restart
+  useEffect(() => {
+    sseRefreshRef.current = { currentPage, sortBy, order, getAllFriends };
+  }, [currentPage, sortBy, order, getAllFriends]);
 
   // SSE: Open a persistent connection to receive real-time sync updates.
   // When the backend finishes syncing a handle, it pushes an event here
@@ -98,11 +112,12 @@ const Home = () => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'synced') {
-          // A handle just finished syncing — refresh the list
-          getAllFriends(currentPage, sortBy, order);
+          // A handle just finished syncing — refresh the list using latest state
+          const { currentPage: p, sortBy: s, order: o, getAllFriends: fetchFn } = sseRefreshRef.current;
+          fetchFn(p, s, o);
         }
-      } catch (e) {
-        // Ignore malformed events
+      } catch (err) {
+        console.error('SSE Error:', err);
       }
     };
 
@@ -115,7 +130,7 @@ const Home = () => {
       es.close();
       eventSourceRef.current = null;
     };
-  }, []);
+  }, []); // Run ONLY once on mount
 
   return (
     <>

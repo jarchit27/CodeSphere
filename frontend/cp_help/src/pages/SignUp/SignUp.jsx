@@ -14,7 +14,7 @@ const SignUp = () => {
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
-  const { fetchUser, user, loading } = useAuth();
+  const { user, loading } = useAuth();
 
   // If user is already logged in, redirect them to dashboard immediately
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { problemService } from '../services/api';
 
 export const useProblems = () => {
@@ -7,6 +7,7 @@ export const useProblems = () => {
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalProblems, setTotalProblems] = useState(0);
   const [allTags, setAllTags] = useState([]);
   
   // UI Filters state
@@ -14,9 +15,13 @@ export const useProblems = () => {
   const [difficultyFilter, setDifficultyFilter] = useState('All');
   const [tagFilter, setTagFilter] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'fetchedAt', direction: 'desc' });
+  const [lastQuery, setLastQuery] = useState('');
+  const fetchIdRef = useRef(0);
 
-  const fetchProblems = useCallback(async (page = 1, query = '') => {
-    setIsLoading(true);
+  const fetchProblems = useCallback(async (page = 1, query = '', quiet = false) => {
+    const currentFetchId = ++fetchIdRef.current;
+    if (!quiet) setIsLoading(true);
+    setLastQuery(query);
     try {
       const params = {
         page,
@@ -29,39 +34,57 @@ export const useProblems = () => {
       };
 
       const response = await problemService.getAll(params);
+      
+      // If a newer request was fired after this one, drop this stale response
+      if (currentFetchId !== fetchIdRef.current) return;
+
       if (response.data && response.data.problems) {
         setProblems(response.data.problems);
         setCurrentPage(response.data.currentPage || 1);
         setTotalPages(response.data.totalPages || 1);
+        setTotalProblems(response.data.totalProblems || 0);
 
         if (response.data.allTags) {
           setAllTags(response.data.allTags);
         }
       }
     } catch (err) {
+      if (currentFetchId !== fetchIdRef.current) return;
+      console.error('Failed to fetch problems:', err);
       setError("Failed to fetch problems. Please try again later.");
     } finally {
-      setIsLoading(false);
+      if (currentFetchId === fetchIdRef.current) {
+        if (!quiet) setIsLoading(false);
+      }
     }
   }, [platformFilter, difficultyFilter, tagFilter, sortConfig]);
 
   const deleteProblem = async (problemId) => {
+    // Optimistically remove from UI
+    setProblems(prev => prev.filter(p => p._id !== problemId));
+    
     try {
       const response = await problemService.delete(problemId);
       if (response.data && !response.data.error) {
-        // Refetch current page
-        fetchProblems(currentPage);
+        // Silently backfill pagination
+        fetchProblems(currentPage, lastQuery, true);
         return { success: true };
       }
+      // If failed, revert silently
+      fetchProblems(currentPage, lastQuery, true);
       return { success: false, error: "Failed to delete" };
     } catch (err) {
+      // Revert silently
+      fetchProblems(currentPage, lastQuery, true);
       setError("Failed to delete problem. Please try again later.");
       return { success: false, error: err.message };
     }
   };
 
   const addProblemLocally = (newProblem, newTags) => {
-    setProblems(prev => [newProblem, ...(prev || [])]);
+    // Silently fetch to apply correct sorting and pagination from backend directly
+    // Instead of optimistically pushing to the top which breaks sort order
+    fetchProblems(currentPage, lastQuery, true);
     
     // Update allTags if there are new ones
     if (newTags && newTags.length > 0) {
@@ -77,6 +100,7 @@ export const useProblems = () => {
     error,
     currentPage,
     totalPages,
+    totalProblems,
     allTags,
     platformFilter,
     setPlatformFilter,

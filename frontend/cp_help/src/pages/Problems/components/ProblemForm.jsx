@@ -92,6 +92,7 @@ const ProblemForm = ({
           }, 1500);
         }
       } catch (err) {
+        console.error('Failed to add problem:', err);
         setFormErrors({ submit: "Failed to save problem. Link might already exist." });
       } finally {
         setIsSubmitting(false);
@@ -102,7 +103,7 @@ const ProblemForm = ({
   if (!showAddForm) return null;
 
   return (
-    <div className="bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-8 mb-8 border border-purple-500/20 relative overflow-hidden group">
+    <div className="bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-8 mb-8 border border-purple-500/20 relative overflow-visible group">
       <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/10 to-purple-600/10 rounded-2xl blur-xl group-hover:opacity-100 transition duration-1000 group-hover:duration-200 opacity-50"></div>
 
       <div className="relative z-10">
@@ -140,7 +141,7 @@ const ProblemForm = ({
             {formErrors.questionName && <p className="text-red-400 text-xs mt-1">{formErrors.questionName}</p>}
           </div>
 
-          <div className="sort-controls-inner !p-2 !rounded-xl col-span-1 flex flex-col justify-end">
+          <div className="sort-controls-inner !p-2 !rounded-xl col-span-1 flex flex-col justify-end relative z-50">
             <CustomSelect
               label="Platform*"
               value={formData.platform}
@@ -153,7 +154,7 @@ const ProblemForm = ({
             {formErrors.platform && <p className="text-red-400 text-xs mt-1">{formErrors.platform}</p>}
           </div>
 
-          <div className="sort-controls-inner !p-2 !rounded-xl col-span-1 flex flex-col justify-end">
+          <div className="sort-controls-inner !p-2 !rounded-xl col-span-1 flex flex-col justify-end relative z-40">
             <CustomSelect
               label="Difficulty*"
               value={formData.difficulty}

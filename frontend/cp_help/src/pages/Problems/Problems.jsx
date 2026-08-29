@@ -18,6 +18,7 @@ const Problems = () => {
     error,
     currentPage,
     totalPages,
+    totalProblems,
     allTags,
     platformFilter,
     setPlatformFilter,
@@ -35,13 +36,12 @@ const Problems = () => {
   // Explicit handler triggered strictly by the debouncer in ProblemFilters
   const handleSearch = useCallback((query) => {
     setCurrentQuery(query);
-    fetchProblems(1, query);
-  }, [fetchProblems]);
+  }, []);
 
   // Fetch when filters or sort change, injecting the last known search query
   useEffect(() => {
     fetchProblems(1, currentQuery);
-  }, [platformFilter, difficultyFilter, tagFilter, sortConfig, fetchProblems]);
+  }, [platformFilter, difficultyFilter, tagFilter, sortConfig, fetchProblems, currentQuery]);
 
   return (
     <div className="min-h-screen bg-transparent">
@@ -85,6 +85,7 @@ const Problems = () => {
 
         <ProblemTable
           problems={problems}
+          totalProblems={totalProblems}
           isLoading={isLoading}
           searchQuery={currentQuery}
           platformFilter={platformFilter}

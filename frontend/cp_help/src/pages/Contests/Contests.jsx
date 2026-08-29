@@ -44,6 +44,18 @@ export default function Contests() {
     return colors[host] || 'bg-purple-500/15 text-purple-400 border-purple-500/30';
   };
 
+  const getCardHoverBorder = (host) => {
+    const borders = {
+      codeforces: 'hover:border-blue-500/60',
+      codechef: 'hover:border-orange-500/60',
+      leetcode: 'hover:border-yellow-500/60',
+      atcoder: 'hover:border-slate-500/60',
+      geeksforgeeks: 'hover:border-green-500/60',
+      codingninjas: 'hover:border-red-500/60',
+    };
+    return borders[host] || 'hover:border-purple-500/60';
+  };
+
   return (
     <div className="min-h-screen bg-transparent text-slate-200">
       <Navbar userInfo={user} showSearchBar={false} />
@@ -96,13 +108,12 @@ export default function Contests() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {displayContests.map((c) => {
                 const badgeColor = getBadgeColor(c.host);
-                const borderColorClass = badgeColor.split(' ').find(cls => cls.startsWith('border-'));
-                const hoverBorderColorClass = borderColorClass ? borderColorClass.replace('/30', '/60') : 'border-slate-500/60';
+                const cardHoverBorder = getCardHoverBorder(c.host);
                 
                 return (
                 <div 
                   key={c.vanity || c.id || c.name} 
-                  className={`bg-slate-900/60 backdrop-blur-md rounded-2xl shadow-lg hover:shadow-2xl hover:-translate-y-1 border border-slate-700 hover:${hoverBorderColorClass} transition-all duration-300 flex flex-col overflow-hidden group`}
+                  className={`bg-slate-900/60 backdrop-blur-md rounded-2xl shadow-lg hover:shadow-2xl hover:-translate-y-1 border border-slate-700 ${cardHoverBorder} transition-all duration-300 flex flex-col overflow-hidden group`}
                 >
                   <div className="p-6 flex-1">
                     <div className="flex justify-between items-start mb-4">

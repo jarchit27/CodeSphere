@@ -25,7 +25,7 @@ const Navbar = ({ userInfo, showSearchBar, onSearchFriend, handleClearSearch }) 
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery]); // Run every time the user types
+  }, [searchQuery, handleClearSearch, onSearchFriend, showSearchBar]); // Run every time the user types
 
   const onLogout = () => {
     logout(); // Clear AuthContext state properly

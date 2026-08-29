@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { friendService } from '../../services/api';
-import axios from 'axios';
 import { Loader2, X } from 'lucide-react';
 
 const AddEditFriend = ({ friendData, type, getAllFriends, onClose }) => {

@@ -13,6 +13,7 @@ const ProblemTable = ({
   handleDeleteProblem,
   currentPage,
   totalPages,
+  totalProblems,
   fetchProblems
 }) => {
   const requestSort = (key) => {
@@ -62,7 +63,7 @@ const ProblemTable = ({
   return (
     <div className="bg-slate-800/90 backdrop-blur-sm rounded-xl shadow-2xl overflow-hidden border border-slate-700">
       <div className="px-6 py-4 border-b border-slate-700">
-        <h2 className="text-xl font-semibold text-white">🌟 Your Coding Problems ({problems.length})</h2>
+        <h2 className="text-xl font-semibold text-white">🌟 Your Coding Problems ({totalProblems})</h2>
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-slate-700">

@@ -3,6 +3,7 @@ import { authService } from '../services/api';
 
 const AuthContext = createContext();
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
@@ -26,6 +27,7 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
       }
     } catch (error) {
+      console.error('Failed to fetch user:', error);
       localStorage.removeItem('token');
       setUser(null);
     } finally {

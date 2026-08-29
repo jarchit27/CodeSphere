@@ -17,8 +17,15 @@ const ProblemFilters = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
 
+  const isInitialMount = React.useRef(true);
+
   // Live debouncer matching the Friends page pattern
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
     const delayDebounceFn = setTimeout(() => {
       onSearch(searchQuery);
     }, 500);

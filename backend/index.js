@@ -220,33 +220,31 @@ apiV1.post("/reset-password", authLimiter, catchAsync(async (req, res) => {
         return res.status(400).json({ error: true, message: "Email, OTP, and new password are required" });
     }
 
-    const user = await User.findOne({ email });
-    if (!user || !user.resetOtp) {
+    // Atomically increment reset attempts to prevent brute-force race conditions
+    const user = await User.findOneAndUpdate(
+        { email, resetOtp: { $ne: null } },
+        { $inc: { resetOtpAttempts: 1 } },
+        { new: true }
+    );
+
+    if (!user) {
         return res.status(400).json({ error: true, message: "Invalid request or OTP expired" });
     }
 
     // Check expiry
     if (Date.now() > user.resetOtpExpires.getTime()) {
-        user.resetOtp = undefined;
-        user.resetOtpExpires = undefined;
-        user.resetOtpAttempts = undefined;
-        await user.save();
+        await User.updateOne({ _id: user._id }, { $unset: { resetOtp: 1, resetOtpExpires: 1, resetOtpAttempts: 1 } });
         return res.status(400).json({ error: true, message: "OTP has expired. Please request a new one." });
     }
 
     // Check attempt limit
-    if (user.resetOtpAttempts >= 5) {
-        user.resetOtp = undefined;
-        user.resetOtpExpires = undefined;
-        user.resetOtpAttempts = undefined;
-        await user.save();
+    if (user.resetOtpAttempts > 5) {
+        await User.updateOne({ _id: user._id }, { $unset: { resetOtp: 1, resetOtpExpires: 1, resetOtpAttempts: 1 } });
         return res.status(400).json({ error: true, message: "Too many failed attempts. Please request a new OTP." });
     }
 
     const isOtpValid = await bcrypt.compare(otp, user.resetOtp);
     if (!isOtpValid) {
-        user.resetOtpAttempts += 1;
-        await user.save();
         const remaining = 5 - user.resetOtpAttempts;
         return res.status(400).json({ error: true, message: `Invalid OTP. ${remaining} attempt(s) remaining.` });
     }
@@ -274,23 +272,25 @@ apiV1.post("/verify-email", authLimiter, catchAsync(async (req, res) => {
         return res.status(400).json({ error: true, message: "Email and OTP are required" });
     }
 
-    // Atomic: grab and remove in one operation to prevent race conditions
-    const pendingUser = await PendingUser.findOne({ email });
+    // Atomic: increment attempts first to prevent brute-force race conditions
+    const pendingUser = await PendingUser.findOneAndUpdate(
+        { email },
+        { $inc: { otpAttempts: 1 } },
+        { new: true }
+    );
+
     if (!pendingUser) {
         return res.status(400).json({ error: true, message: "OTP has expired or user does not exist. Please sign up again." });
     }
 
     // Check attempt limit (max 5 wrong attempts)
-    if (pendingUser.otpAttempts >= 5) {
+    if (pendingUser.otpAttempts > 5) {
         await PendingUser.deleteOne({ email });
         return res.status(400).json({ error: true, message: "Too many failed attempts. Please sign up again." });
     }
 
     const isOtpValid = await bcrypt.compare(otp, pendingUser.hashedOtp);
     if (!isOtpValid) {
-        // Increment attempt counter
-        pendingUser.otpAttempts += 1;
-        await pendingUser.save();
         const remaining = 5 - pendingUser.otpAttempts;
         return res.status(400).json({ error: true, message: `Invalid OTP. ${remaining} attempt(s) remaining.` });
     }

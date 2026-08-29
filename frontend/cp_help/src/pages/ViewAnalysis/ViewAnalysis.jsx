@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 
 import { getColorByRating, getRankTitle } from '../../utils/helper';
@@ -367,7 +366,7 @@ const ViewAnalysis = ({ profileData, ratingHistory, submissions }) => {
                       label: 'Problems',
                       data: Object.entries(tagData)
                         .sort((a, b) => b[1] - a[1])
-                        .map(([_, count]) => count),
+                        .map(entry => entry[1]),
                       backgroundColor: 'rgba(139, 92, 246, 0.7)',
                       borderColor: 'rgba(139, 92, 246, 1)',
                       borderWidth: 1,
